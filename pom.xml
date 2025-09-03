@@ -51,6 +51,7 @@
         <spring-boot.version>2.7.18</spring-boot.version>
         <mybatis.version>2.3.1</mybatis.version>
         <mariadb.version>3.4.1</mariadb.version>
+        <mysql.version>8.0.33</mysql.version>
         <hutool.version>5.8.32</hutool.version>
         <bouncycastle.version>1.78</bouncycastle.version>
         <springdoc.version>1.7.0</springdoc.version>
@@ -77,6 +78,12 @@
                 <groupId>org.mariadb.jdbc</groupId>
                 <artifactId>mariadb-java-client</artifactId>
                 <version>${mariadb.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>${mysql.version}</version>
             </dependency>
 
             <!-- Hutool -->
