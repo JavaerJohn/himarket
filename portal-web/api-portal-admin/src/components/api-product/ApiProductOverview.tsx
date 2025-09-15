@@ -42,7 +42,6 @@ export function ApiProductOverview({ apiProduct }: ApiProductOverviewProps) {
       const res = await apiProductApi.getApiProductRef(apiProduct.productId)
       setLinkedService(res.data || null)
     } catch (error) {
-      console.error('获取关联服务失败:', error)
       setLinkedService(null)
     }
   }

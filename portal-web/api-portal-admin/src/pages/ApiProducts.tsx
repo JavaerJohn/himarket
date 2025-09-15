@@ -136,10 +136,10 @@ export default function ApiProducts() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
 
-  const fetchApiProducts = useCallback((page = 1, size = 12, extraFilters?: { type?: string }) => {
+  const fetchApiProducts = useCallback((page = 1, size = 12, queryFilters?: { type?: string, name?: string }) => {
     setLoading(true);
-    const effective = extraFilters ?? filters;
-    apiProductApi.getApiProducts({ page, size, ...effective }).then((res: any) => {
+    const params = { page, size, ...(queryFilters || {}) };
+    apiProductApi.getApiProducts(params).then((res: any) => {
       const products = res.data.content;
       setApiProducts(products);
       setPagination({
@@ -150,11 +150,11 @@ export default function ApiProducts() {
     }).finally(() => {
       setLoading(false);
     });
-  }, [filters]);
+  }, []); // 不依赖任何状态，避免无限循环
 
   useEffect(() => {
     fetchApiProducts(1, 12);
-  }, [fetchApiProducts]);
+  }, []); // 只在组件初始化时执行一次
 
   // 预设的产品类型（无 "All"）
   const typeOptions = useMemo(() => (
@@ -207,7 +207,7 @@ export default function ApiProducts() {
 
   // 处理分页变化
   const handlePaginationChange = (page: number, pageSize: number) => {
-    fetchApiProducts(page, pageSize);
+    fetchApiProducts(page, pageSize, filters); // 传递当前filters
   };
 
   // 直接使用服务端返回的列表
@@ -233,7 +233,7 @@ export default function ApiProducts() {
   const handleModalSuccess = () => {
     setModalVisible(false);
     setEditingProduct(null);
-    fetchApiProducts(pagination.current, pagination.pageSize);
+    fetchApiProducts(pagination.current, pagination.pageSize, filters);
   };
 
   // 处理模态框取消
@@ -294,7 +294,7 @@ export default function ApiProducts() {
                 key={product.productId}
                 product={product}
                 onNavigate={handleNavigateToProduct}
-                handleRefresh={() => fetchApiProducts(pagination.current, pagination.pageSize)}
+                handleRefresh={() => fetchApiProducts(pagination.current, pagination.pageSize, filters)}
                 onEdit={handleEdit}
               />
             ))}

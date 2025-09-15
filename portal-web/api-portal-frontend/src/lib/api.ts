@@ -10,12 +10,14 @@ const api: AxiosInstance = axios.create({
   },
 })
 
+
 // 请求拦截器
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const accessToken = localStorage.getItem('access_token');
+    
+    if (accessToken && config.headers) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -34,12 +36,16 @@ api.interceptors.response.use(
     switch (status) {
       case 401:
         message.error('未登录或登录已过期，请重新登录');
+        // 清除token信息
+        localStorage.removeItem('access_token');
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
         break;
       case 403:
         message.error('无权限访问该资源，请重新登录');
+        // 清除token信息
+        localStorage.removeItem('access_token');
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
@@ -92,6 +98,31 @@ export function createConsumer(data: any) {
 export function subscribeProduct(consumerId: string, productId: string) {
   return api.post(`/consumers/${consumerId}/subscriptions`, {
     productId: productId
+  });
+}
+
+
+// OIDC相关接口定义 - 对接OidcController
+export interface IdpResult {
+  provider: string;
+  name: string;
+}
+
+export interface AuthResult {
+  data: {
+    access_token: string;
+  }
+}
+
+// 获取OIDC提供商列表 - 对接 /developers/oidc/providers
+export function getOidcProviders(): Promise<IdpResult[]> {
+  return api.get('/developers/oidc/providers');
+}
+
+// OIDC回调处理 - 对接 /developers/oidc/callback
+export function handleOidcCallback(code: string, state: string): Promise<AuthResult> {
+  return api.get('/developers/oidc/callback', {
+    params: { code, state }
   });
 }
 

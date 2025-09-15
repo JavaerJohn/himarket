@@ -43,7 +43,7 @@ public class DeveloperAuthenticationProvider implements AuthenticationProvider {
         String username = authentication.getName();
         String password = authentication.getCredentials().toString();
         try {
-            developerService.loginWithPassword(username, password);
+            developerService.login(username, password);
             GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_DEVELOPER");
             return new UsernamePasswordAuthenticationToken(username, null, Collections.singletonList(authority));
         } catch (Exception e) {

@@ -19,17 +19,26 @@
 
 package com.alibaba.apiopenplatform.dto.params.developer;
 
-import com.alibaba.apiopenplatform.support.enums.DeveloperStatus;
+import com.alibaba.apiopenplatform.dto.converter.InputConverter;
+import com.alibaba.apiopenplatform.entity.Developer;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * 开发者状态参数
- *
- */
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Size;
+
 @Data
-public class DeveloperStatusParam {
+@NoArgsConstructor
+public class CreateDeveloperParam implements InputConverter<Developer> {
 
-    private String portalId;
+    @NotBlank(message = "用户名不能为空")
+    @Size(max = 64, message = "用户名长度不能超过64个字符")
+    private String username;
 
-    private DeveloperStatus status;
+    @NotBlank(message = "密码不能为空")
+    @Size(min = 6, max = 32, message = "密码长度应为6-32位")
+    private String password;
+
+    @Size(max = 256, message = "头像url长度不能超过256个字符")
+    private String avatarUrl;
 } 

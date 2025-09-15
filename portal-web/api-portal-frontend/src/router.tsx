@@ -11,6 +11,7 @@ import Register from "./pages/Register";
 import Profile from './pages/Profile'
 import McpDetail from "./pages/McpDetail";
 import Callback from "./pages/Callback";
+import OidcCallback from "./pages/OidcCallback";
 
 export function Router() {
   return (
@@ -27,6 +28,7 @@ export function Router() {
       <Route path="/register" element={<Register />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/callback" element={<Callback />} />
+      <Route path="/oidc/callback" element={<OidcCallback />} />
 
       {/* 其他页面可继续添加 */}
     </Routes>

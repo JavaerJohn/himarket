@@ -33,8 +33,9 @@ const Login: React.FC = () => {
         username: values.username,
         password: values.password,
       });
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('userInfo', response.data);
+      const accessToken = response.data.access_token;
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('userInfo', JSON.stringify(response.data));
       navigate('/portals');
     } catch {
       setError("账号或密码错误");
@@ -75,7 +76,7 @@ const Login: React.FC = () => {
           <img src="/logo.png" alt="Logo" className="w-16 h-16 mx-auto mb-4" />
         </div>
         <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">
-          {isRegister ? "注册Admin账号 - 后台" : "登录AI开放平台 - 后台"}
+          {isRegister ? "注册Admin账号" : "登录HiMarket-后台"}
         </h2>
 
         {/* 登录表单 */}

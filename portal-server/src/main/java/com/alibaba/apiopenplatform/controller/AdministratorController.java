@@ -24,8 +24,8 @@ import com.alibaba.apiopenplatform.core.utils.TokenUtil;
 import com.alibaba.apiopenplatform.dto.params.admin.AdminCreateParam;
 import com.alibaba.apiopenplatform.dto.params.admin.AdminLoginParam;
 import com.alibaba.apiopenplatform.dto.params.admin.ResetPasswordParam;
-import com.alibaba.apiopenplatform.dto.result.AuthResponseResult;
 import com.alibaba.apiopenplatform.dto.result.AdminResult;
+import com.alibaba.apiopenplatform.dto.result.AuthResult;
 import com.alibaba.apiopenplatform.service.AdministratorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -49,7 +49,7 @@ public class AdministratorController {
 
     @Operation(summary = "管理员登录", description = "管理员登录，只需用户名和密码")
     @PostMapping("/login")
-    public AuthResponseResult login(@Valid @RequestBody AdminLoginParam param) {
+    public AuthResult login(@Valid @RequestBody AdminLoginParam param) {
         return administratorService.login(param.getUsername(), param.getPassword());
     }
 

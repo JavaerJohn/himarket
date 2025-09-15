@@ -127,8 +127,9 @@ const PortalCard = memo(
             </Tooltip>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-3">
+          <div className="space-y-3">
+            {/* 第一行：账号密码登录 + 开发者自动审批 */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
                 <span className="text-xs font-medium text-gray-600">
                   账号密码登录
@@ -146,23 +147,6 @@ const PortalCard = memo(
                 </span>
               </div>
 
-              {/* <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                <span className="text-xs font-medium text-gray-600">
-                  OIDC登录
-                </span>
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    portal.portalSettingConfig?.oidcAuthEnabled
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {portal.portalSettingConfig?.oidcAuthEnabled
-                    ? "支持"
-                    : "不支持"}
-                </span>
-              </div> */}
-
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
                 <span className="text-xs font-medium text-gray-600">
                   开发者自动审批
@@ -179,17 +163,10 @@ const PortalCard = memo(
                     : "否"}
                 </span>
               </div>
-              <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                <span className="text-xs font-medium text-gray-600">
-                  域名配置
-                </span>
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                  {portal.portalDomainConfig?.length || 0}个
-                </span>
-              </div>
             </div>
 
-            <div className="space-y-3">
+            {/* 第二行：订阅自动审批 + 域名配置 */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
                 <span className="text-xs font-medium text-gray-600">
                   订阅自动审批
@@ -206,15 +183,15 @@ const PortalCard = memo(
                     : "否"}
                 </span>
               </div>
+
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
                 <span className="text-xs font-medium text-gray-600">
-                  OIDC配置
+                  域名配置
                 </span>
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                  {portal.portalSettingConfig?.oidcConfigs?.length || 0}个
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  {portal.portalDomainConfig?.length || 0}个
                 </span>
               </div>
-            
             </div>
           </div>
 

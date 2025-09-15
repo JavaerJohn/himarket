@@ -21,6 +21,7 @@ package com.alibaba.apiopenplatform.dto.result;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 
 import java.util.List;
 
@@ -66,7 +67,7 @@ public class MCPConfigResult {
          */
         private Object rawConfig;
 
-        private MCPTransportMode transportMode = MCPTransportMode.REMOTE;
+        private String transportMode = MCPTransportMode.REMOTE.getMode();
     }
 
     @Data
@@ -76,8 +77,15 @@ public class MCPConfigResult {
         private String protocol;
     }
 
+    @Getter
     public enum MCPTransportMode {
-        LOCAL,
-        REMOTE
+        LOCAL("Local"),
+        REMOTE("Remote");
+
+        private final String mode;
+
+        MCPTransportMode(String mode) {
+            this.mode = mode;
+        }
     }
 }

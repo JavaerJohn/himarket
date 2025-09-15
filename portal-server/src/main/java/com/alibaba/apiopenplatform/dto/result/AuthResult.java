@@ -17,31 +17,34 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.dto.params.developer;
+package com.alibaba.apiopenplatform.dto.result;
 
-import com.alibaba.apiopenplatform.dto.converter.InputConverter;
-import com.alibaba.apiopenplatform.entity.Developer;
+import cn.hutool.core.annotation.Alias;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
 
-/**
- * 开发者注册/创建参数DTO
- *
- */
 @Data
-@NoArgsConstructor
-public class DeveloperCreateParam implements InputConverter<Developer> {
+@Builder
+public class AuthResult {
 
-    @NotBlank(message = "用户名不能为空")
-    @Size(max = 64, message = "用户名长度不能超过64个字符")
-    private String username;
+    @Alias("access_token")
+    @JsonProperty("access_token")
+    private String accessToken;
 
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 32, message = "密码长度应为6-32位")
-    private String password;
+    @Alias("token_type")
+    @JsonProperty("token_type")
+    @Builder.Default
+    private String tokenType = "Bearer";
 
-    @Size(max = 256, message = "头像url长度不能超过256个字符")
-    private String avatarUrl;
+    @Alias("expires_in")
+    @JsonProperty("expires_in")
+    private Long expiresIn;
+
+    public static AuthResult of(String accessToken, Long expiresIn) {
+        return AuthResult.builder()
+                .accessToken(accessToken)
+                .expiresIn(expiresIn)
+                .build();
+    }
 } 

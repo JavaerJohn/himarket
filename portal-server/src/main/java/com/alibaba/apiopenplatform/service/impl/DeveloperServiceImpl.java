@@ -25,22 +25,24 @@ import com.alibaba.apiopenplatform.core.constant.Resources;
 import com.alibaba.apiopenplatform.core.event.DeveloperDeletingEvent;
 import com.alibaba.apiopenplatform.core.event.PortalDeletingEvent;
 import com.alibaba.apiopenplatform.core.utils.TokenUtil;
-import com.alibaba.apiopenplatform.dto.params.developer.DeveloperCreateParam;
+import com.alibaba.apiopenplatform.dto.params.developer.CreateDeveloperParam;
+import com.alibaba.apiopenplatform.dto.params.developer.CreateExternalDeveloperParam;
 import com.alibaba.apiopenplatform.dto.params.developer.QueryDeveloperParam;
-import com.alibaba.apiopenplatform.dto.result.AuthResponseResult;
+import com.alibaba.apiopenplatform.dto.params.developer.UpdateDeveloperParam;
+import com.alibaba.apiopenplatform.dto.result.AuthResult;
 import com.alibaba.apiopenplatform.dto.result.DeveloperResult;
 import com.alibaba.apiopenplatform.dto.result.PageResult;
-import com.alibaba.apiopenplatform.dto.result.PortalResult;
 import com.alibaba.apiopenplatform.entity.Developer;
+import com.alibaba.apiopenplatform.entity.Portal;
 import com.alibaba.apiopenplatform.repository.DeveloperRepository;
+import com.alibaba.apiopenplatform.repository.PortalRepository;
 import com.alibaba.apiopenplatform.service.DeveloperService;
 import com.alibaba.apiopenplatform.core.utils.PasswordHasher;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
 import com.alibaba.apiopenplatform.repository.DeveloperExternalIdentityRepository;
 import com.alibaba.apiopenplatform.entity.DeveloperExternalIdentity;
-import com.alibaba.apiopenplatform.service.PortalService;
+import com.alibaba.apiopenplatform.support.enums.DeveloperAuthType;
 import com.alibaba.apiopenplatform.support.enums.DeveloperStatus;
-import com.alibaba.apiopenplatform.support.portal.PortalSettingConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -62,160 +64,125 @@ import javax.servlet.http.HttpServletRequest;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class DeveloperServiceImpl implements DeveloperService {
+
     private final DeveloperRepository developerRepository;
 
-    private final DeveloperExternalIdentityRepository developerExternalIdentityRepository;
-    
-    private final PortalService portalService;
-    
+    private final DeveloperExternalIdentityRepository externalRepository;
+
+    private final PortalRepository portalRepository;
+
     private final ContextHolder contextHolder;
-    
+
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
-    public Optional<Developer> findByDeveloperId(String developerId) {
-        return developerRepository.findByDeveloperId(developerId);
-    }
-
-    @Override
-    @Transactional
-    public AuthResponseResult registerDeveloper(DeveloperCreateParam param) {
-        Developer developer = createDeveloper(param);
+    public AuthResult registerDeveloper(CreateDeveloperParam param) {
+        DeveloperResult developer = createDeveloper(param);
 
         // 检查是否自动审批
         String portalId = contextHolder.getPortal();
-        PortalResult portal = portalService.getPortal(portalId);
+        Portal portal = findPortal(portalId);
         boolean autoApprove = portal.getPortalSettingConfig() != null
                 && BooleanUtil.isTrue(portal.getPortalSettingConfig().getAutoApproveDevelopers());
 
         if (autoApprove) {
-            return generateAuthResult(developer);
+            String token = generateToken(developer.getDeveloperId());
+            return AuthResult.of(token, TokenUtil.getTokenExpiresIn());
         }
         return null;
     }
 
     @Override
-    @Transactional
-    public Developer createDeveloper(DeveloperCreateParam param) {
+    public DeveloperResult createDeveloper(CreateDeveloperParam param) {
         String portalId = contextHolder.getPortal();
         developerRepository.findByPortalIdAndUsername(portalId, param.getUsername()).ifPresent(developer -> {
-            throw new BusinessException(ErrorCode.DEVELOPER_USERNAME_EXISTS, param.getUsername());
+            throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.DEVELOPER, param.getUsername()));
         });
 
         Developer developer = param.convertTo();
         developer.setDeveloperId(generateDeveloperId());
         developer.setPortalId(portalId);
         developer.setPasswordHash(PasswordHasher.hash(param.getPassword()));
-        
-        PortalResult portal = portalService.getPortal(portalId);
+
+        Portal portal = findPortal(portalId);
         boolean autoApprove = portal.getPortalSettingConfig() != null
                 && BooleanUtil.isTrue(portal.getPortalSettingConfig().getAutoApproveDevelopers());
         developer.setStatus(autoApprove ? DeveloperStatus.APPROVED : DeveloperStatus.PENDING);
-        developer.setAuthType("LOCAL");
-        
-        return developerRepository.save(developer);
+        developer.setAuthType(DeveloperAuthType.BUILTIN);
+
+        developerRepository.save(developer);
+        return new DeveloperResult().convertFrom(developer);
     }
 
     @Override
-    public AuthResponseResult loginWithPassword(String username, String password) {
+    public AuthResult login(String username, String password) {
         String portalId = contextHolder.getPortal();
-        Developer developer = findDeveloperByPortalAndUsername(portalId, username);
-        
+        Developer developer = developerRepository.findByPortalIdAndUsername(portalId, username)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.DEVELOPER, username));
+
         if (!DeveloperStatus.APPROVED.equals(developer.getStatus())) {
-            throw new BusinessException(ErrorCode.ACCOUNT_PENDING);
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "账号审批中");
         }
-        if ("EXTERNAL".equals(developer.getAuthType()) || developer.getPasswordHash() == null) {
-            throw new BusinessException(ErrorCode.ACCOUNT_EXTERNAL_ONLY);
-        }
+
         if (!PasswordHasher.verify(password, developer.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.AUTH_INVALID);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        
-        String token = TokenUtil.generateDeveloperToken(developer.getDeveloperId());
-        return AuthResponseResult.fromDeveloper(developer.getDeveloperId(), developer.getUsername(), token);
+
+        String token = generateToken(developer.getDeveloperId());
+        return AuthResult.builder()
+                .accessToken(token)
+                .expiresIn(TokenUtil.getTokenExpiresIn())
+                .build();
     }
 
     @Override
-    @Transactional
-    public Optional<AuthResponseResult> handleExternalLogin(String providerName, String providerSubject, String email, String displayName, String rawInfoJson) {
-        Optional<DeveloperExternalIdentity> extOpt = developerExternalIdentityRepository.findByProviderAndSubject(providerName, providerSubject);
-        Developer developer;
-        
-        if (extOpt.isPresent()) {
-            developer = extOpt.get().getDeveloper();
-        } else {
-            developer = createExternalDeveloper(providerName, providerSubject, email, displayName, rawInfoJson);
-        }
-        
-        String token = generateToken(developer);
-        return Optional.of(AuthResponseResult.fromDeveloper(developer.getDeveloperId(), developer.getUsername(), token));
+    public void existsDeveloper(String developerId) {
+        developerRepository.findByDeveloperId(developerId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.DEVELOPER, developerId));
     }
 
     @Override
-    public AuthResponseResult generateAuthResult(Developer developer) {
-        String token = generateToken(developer);
-        return AuthResponseResult.fromDeveloper(developer.getDeveloperId(), developer.getUsername(), token);
-    }
+    public DeveloperResult createExternalDeveloper(CreateExternalDeveloperParam param) {
+        Developer developer = Developer.builder()
+                .developerId(IdGenerator.genDeveloperId())
+                .portalId(contextHolder.getPortal())
+                .username(buildExternalName(param.getProvider(), param.getDisplayName()))
+                .email(param.getEmail())
+                // 默认APPROVED
+                .status(DeveloperStatus.APPROVED)
+                .build();
 
-    @Override
-    @Transactional
-    public void bindExternalIdentity(String userId, String providerName, String providerSubject, String displayName, String rawInfoJson, String portalId) {
-        validateOidcProvider(portalId, providerName);
-        
-        Developer developer = findDeveloper(userId);
-        
-        Optional<DeveloperExternalIdentity> extOpt = developerExternalIdentityRepository.findByProviderAndSubject(providerName, providerSubject);
-        if (extOpt.isPresent()) {
-            String boundDevId = extOpt.get().getDeveloper().getDeveloperId();
-            if (!boundDevId.equals(userId)) {
-                throw new BusinessException(ErrorCode.EXTERNAL_IDENTITY_BOUND);
-            }
-            return; // 已绑定，无需重复绑定
-        }
-        
-        DeveloperExternalIdentity ext = DeveloperExternalIdentity.builder()
-                .provider(providerName)
-                .subject(providerSubject)
-                .displayName(displayName)
-                .rawInfoJson(rawInfoJson)
+        DeveloperExternalIdentity externalIdentity = DeveloperExternalIdentity.builder()
+                .provider(param.getProvider())
+                .subject(param.getSubject())
+                .displayName(param.getDisplayName())
+                .authType(param.getAuthType())
                 .developer(developer)
                 .build();
-        developerExternalIdentityRepository.save(ext);
+
+        developerRepository.save(developer);
+        externalRepository.save(externalIdentity);
+        return new DeveloperResult().convertFrom(developer);
     }
 
     @Override
-    @Transactional
-    public void unbindExternalIdentity(String userId, String providerName, String providerSubject) {
-        String portalId = contextHolder.getPortal();
-        validateOidcProvider(portalId, providerName);
-        
-        Developer developer = findDeveloper(userId);
-        
-        List<DeveloperExternalIdentity> identities = developerExternalIdentityRepository.findByDeveloper_DeveloperId(userId);
-        boolean hasBuiltin = developer.getPasswordHash() != null;
-        long otherCount = identities.stream()
-                .filter(id -> !(id.getProvider().equals(providerName) && id.getSubject().equals(providerSubject)))
-                .count();
-        
-        if (!hasBuiltin && otherCount == 0) {
-            throw new BusinessException(ErrorCode.DEVELOPER_UNBIND_FAILED);
-        }
-        
-        developerExternalIdentityRepository.deleteByProviderAndSubjectAndDeveloper_DeveloperId(providerName, providerSubject, userId);
+    public DeveloperResult getExternalDeveloper(String provider, String subject) {
+        return externalRepository.findByProviderAndSubject(provider, subject)
+                .map(o -> new DeveloperResult().convertFrom(o.getDeveloper()))
+                .orElse(null);
+    }
+
+    private String buildExternalName(String provider, String subject) {
+        return StrUtil.format("{}_{}", provider, subject);
     }
 
     @Override
-    @Transactional
     public void deleteDeveloperAccount(String userId) {
         eventPublisher.publishEvent(new DeveloperDeletingEvent(userId));
-        developerExternalIdentityRepository.deleteByDeveloper_DeveloperId(userId);
+        externalRepository.deleteByDeveloper_DeveloperId(userId);
         developerRepository.findByDeveloperId(userId).ifPresent(developerRepository::delete);
-    }
-
-    @Override
-    public boolean hasDeveloper(String portalId, String developerId) {
-        return findDeveloper(developerId) != null;
     }
 
     @Override
@@ -242,33 +209,30 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     @Override
     @Transactional
-    public boolean changePassword(String developerId, String oldPassword, String newPassword) {
+    public boolean resetPassword(String developerId, String oldPassword, String newPassword) {
         Developer developer = findDeveloper(developerId);
-        
+
         if (!PasswordHasher.verify(oldPassword, developer.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.AUTH_INVALID);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        
+
         developer.setPasswordHash(PasswordHasher.hash(newPassword));
         developerRepository.save(developer);
         return true;
     }
 
     @Override
-    @Transactional
-    public boolean updateProfile(String developerId, String username, String email, String avatarUrl) {
-        Developer developer = findDeveloper(developerId);
+    public boolean updateProfile(UpdateDeveloperParam param) {
+        Developer developer = findDeveloper(contextHolder.getUser());
 
+        String username = param.getUsername();
         if (username != null && !username.equals(developer.getUsername())) {
             if (developerRepository.findByPortalIdAndUsername(developer.getPortalId(), username).isPresent()) {
-                throw new BusinessException(ErrorCode.DEVELOPER_USERNAME_EXISTS, username);
+                throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.DEVELOPER, username));
             }
-            developer.setUsername(username);
         }
+        param.update(developer);
 
-        if (email != null) developer.setEmail(email);
-        if (avatarUrl != null) developer.setAvatarUrl(avatarUrl);
-        
         developerRepository.save(developer);
         return true;
     }
@@ -281,25 +245,24 @@ public class DeveloperServiceImpl implements DeveloperService {
         developers.forEach(developer -> deleteDeveloperAccount(developer.getDeveloperId()));
     }
 
-    private String generateToken(Developer developer) {
-        // 统一使用 TokenUtil，确保 userType 按枚举大写（DEVELOPER），与鉴权角色映射一致
-        return TokenUtil.generateDeveloperToken(developer.getDeveloperId());
+    private String generateToken(String developerId) {
+        return TokenUtil.generateDeveloperToken(developerId);
     }
 
     private Developer createExternalDeveloper(String providerName, String providerSubject, String email, String displayName, String rawInfoJson) {
         String portalId = contextHolder.getPortal();
         String username = generateUniqueUsername(portalId, displayName, providerName, providerSubject);
-        
+
         Developer developer = Developer.builder()
                 .developerId(generateDeveloperId())
                 .portalId(portalId)
                 .username(username)
                 .email(email)
                 .status(DeveloperStatus.APPROVED)
-                .authType("OIDC")
+                .authType(DeveloperAuthType.OIDC)
                 .build();
         developer = developerRepository.save(developer);
-        
+
         DeveloperExternalIdentity ext = DeveloperExternalIdentity.builder()
                 .provider(providerName)
                 .subject(providerSubject)
@@ -307,7 +270,7 @@ public class DeveloperServiceImpl implements DeveloperService {
                 .rawInfoJson(rawInfoJson)
                 .developer(developer)
                 .build();
-        developerExternalIdentityRepository.save(ext);
+        externalRepository.save(ext);
         return developer;
     }
 
@@ -322,30 +285,18 @@ public class DeveloperServiceImpl implements DeveloperService {
         return username;
     }
 
-    private void validateOidcProvider(String portalId, String providerName) {
-        PortalResult portal = portalService.getPortal(portalId);
-        PortalSettingConfig portalSetting = portal.getPortalSettingConfig();
-        
-        boolean valid = portalSetting.getOidcConfigs() != null && 
-                portalSetting.getOidcConfigs().stream()
-                        .anyMatch(config -> providerName.equals(config.getProvider()) && config.isEnabled());
-        if (!valid) {
-            throw new BusinessException(ErrorCode.OIDC_CONFIG_DISABLED);
-        }
-    }
-
     private String generateDeveloperId() {
         return IdGenerator.genDeveloperId();
     }
 
     private Developer findDeveloper(String developerId) {
         return developerRepository.findByDeveloperId(developerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.DEVELOPER, developerId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.DEVELOPER, developerId));
     }
 
-    private Developer findDeveloperByPortalAndUsername(String portalId, String username) {
-        return developerRepository.findByPortalIdAndUsername(portalId, username)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+    private Portal findPortal(String portalId) {
+        return portalRepository.findByPortalId(portalId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
     }
 
     private Specification<Developer> buildSpecification(QueryDeveloperParam param) {
@@ -383,12 +334,7 @@ public class DeveloperServiceImpl implements DeveloperService {
     @Override
     public boolean changeCurrentDeveloperPassword(String oldPassword, String newPassword) {
         String currentUserId = contextHolder.getUser();
-        return changePassword(currentUserId, oldPassword, newPassword);
+        return resetPassword(currentUserId, oldPassword, newPassword);
     }
 
-    @Override
-    public boolean updateCurrentDeveloperProfile(String username, String email, String avatarUrl) {
-        String currentUserId = contextHolder.getUser();
-        return updateProfile(currentUserId, username, email, avatarUrl);
-    }
 }

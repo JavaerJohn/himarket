@@ -22,17 +22,13 @@ package com.alibaba.apiopenplatform.entity;
 import javax.persistence.*;
 import java.util.Date;
 
+import com.alibaba.apiopenplatform.support.enums.DeveloperAuthType;
 import com.alibaba.apiopenplatform.support.enums.DeveloperStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import java.io.Serializable;
 
-/**
- * 开发者实体类，映射开发者账号信息
- *
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -40,10 +36,9 @@ import java.io.Serializable;
 @Entity
 @Table(name = "developer", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"developerId"}),
-        @UniqueConstraint(columnNames = {"portalId", "username"})  // 按portalId+username组合唯一
+        @UniqueConstraint(columnNames = {"portalId", "username"})
 })
-public class Developer extends BaseEntity implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class Developer extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,26 +47,27 @@ public class Developer extends BaseEntity implements Serializable {
     @Column(nullable = false, unique = true, length = 64)
     private String developerId;
 
-    @Column(nullable = true, length = 64)
+    @Column(length = 64)
     private String username;
 
-    @Column(nullable = true)
+    @Column()
     private String passwordHash;
 
-    @Column(nullable = true, length = 128)
+    @Column(length = 128)
     private String email;
 
     @Column(nullable = false, length = 64)
     private String portalId;
 
-    @Column(nullable = true, length = 256)
-    private String avatarUrl; // 头像url
+    @Column(length = 256)
+    private String avatarUrl;
 
     @Column(nullable = false, length = 16)
     @Enumerated(EnumType.STRING)
-    private DeveloperStatus status; // PENDING, APPROVED
+    private DeveloperStatus status;
 
-    @Column(nullable = false, length = 16)
-    private String authType; // BUILT, OIDC
+    @Column(length = 16)
+    @Enumerated(EnumType.STRING)
+    private DeveloperAuthType authType;
 
 } 

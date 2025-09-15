@@ -44,15 +44,15 @@ public class ConsumerCredential extends BaseEntity {
     @Column(name = "consumer_id", nullable = false)
     private String consumerId;
 
-    @Column(name = "apikey_config", columnDefinition = "text")
+    @Column(name = "apikey_config", columnDefinition = "json")
     @Convert(converter = ApiKeyConfigConverter.class)
     private ApiKeyConfig apiKeyConfig;
 
-    @Column(name = "hmac_config", columnDefinition = "text")
+    @Column(name = "hmac_config", columnDefinition = "json")
     @Convert(converter = HmacConfigConverter.class)
     private HmacConfig hmacConfig;
 
-    @Column(name = "jwt_config", columnDefinition = "text")
+    @Column(name = "jwt_config", columnDefinition = "json")
     @Convert(converter = JwtConfigConverter.class)
     private JwtConfig jwtConfig;
 }

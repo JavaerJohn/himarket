@@ -19,25 +19,43 @@
 
 package com.alibaba.apiopenplatform.support.portal;
 
+import com.alibaba.apiopenplatform.support.enums.GrantType;
 import lombok.Data;
 
-/**
- * 通用三方登录/自定义OIDC配置实体
- * 支持所有三方登录方式统一配置
- */
 @Data
 public class OidcConfig {
-    private String id; // 唯一标识
-    private String provider; // 平台标识，如 github、google、aliyun、oidc
-    private String name; // 显示名，如“GitHub登录”、“公司SSO”
-    private String logoUrl; // 登录按钮logo
-    private String clientId;
-    private String clientSecret;
-    private String scopes;
-    private String authorizationEndpoint;
-    private String tokenEndpoint;
-    private String userInfoEndpoint;
-    private String jwkSetUri;
-    private String redirectUri;
-    private boolean enabled; // 是否启用
+    /**
+     * 提供商
+     */
+    private String provider;
+
+    /**
+     * 对外的名称
+     */
+    private String name;
+
+    /**
+     * 登录按钮logo
+     */
+    private String logoUrl;
+
+    /**
+     * 是否启用
+     */
+    private boolean enabled = true;
+
+    /**
+     * 授权类型，默认授权码
+     */
+    private GrantType grantType = GrantType.AUTHORIZATION_CODE;
+
+    /**
+     * 授权码模式配置
+     */
+    private AuthCodeConfig authCodeConfig;
+
+    /**
+     * 身份映射
+     */
+    private IdentityMapping identityMapping = new IdentityMapping();
 }

@@ -62,7 +62,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
         setModalLoading(false)
       })
     }
-  }, [isModalVisible, apiProducts])
+  }, [isModalVisible]) // 移除apiProducts依赖，避免重复请求
 
   const handlePageChange = (page: number, size?: number) => {
     setCurrentPage(page)
@@ -213,7 +213,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold mb-2">API Product</h1>
-          <p className="text-gray-600">管理在此Portal中发布的API</p>
+          <p className="text-gray-600">管理在此Portal中发布的API产品</p>
         </div>
         <Button type="primary" onClick={() => setIsModalVisible(true)}>
           发布新API

@@ -48,7 +48,6 @@ export function SubscriptionListModal({
         total: res.data.totalElements || 0
       }));
     }).catch((err) => {
-      console.error('获取订阅列表失败:', err);
       message.error('获取订阅列表失败');
     }).finally(() => {
       setLoading(false);
@@ -70,7 +69,6 @@ export function SubscriptionListModal({
       message.success('审批通过成功');
       fetchSubscriptions(); // 重新获取数据
     } catch (error: any) {
-      console.error('审批失败:', error);
       const errorMessage = error.response?.data?.message || error.message || '审批失败';
       message.error(`审批失败: ${errorMessage}`);
     } finally {
@@ -85,7 +83,6 @@ export function SubscriptionListModal({
       message.success('删除订阅成功');
       fetchSubscriptions(); // 重新获取数据
     } catch (error: any) {
-      console.error('删除订阅失败:', error);
       const errorMessage = error.response?.data?.message || error.message || '删除订阅失败';
       message.error(`删除订阅失败: ${errorMessage}`);
     } finally {

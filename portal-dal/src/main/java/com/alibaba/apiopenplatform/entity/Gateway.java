@@ -58,14 +58,14 @@ public class Gateway extends BaseEntity {
     private String adminId;
 
     @Convert(converter = APIGConfigConverter.class)
-    @Column(name = "apig_config", columnDefinition = "text")
+    @Column(name = "apig_config", columnDefinition = "json")
     private APIGConfig apigConfig;
 
     @Convert(converter = AdpAIGatewayConfigConverter.class)
-    @Column(name = "adp_ai_gateway_config", columnDefinition = "text")
+    @Column(name = "adp_ai_gateway_config", columnDefinition = "json")
     private AdpAIGatewayConfig adpAIGatewayConfig;
 
     @Convert(converter = HigressConfigConverter.class)
-    @Column(name = "higress_config", columnDefinition = "text")
+    @Column(name = "higress_config", columnDefinition = "json")
     private HigressConfig higressConfig;
 }

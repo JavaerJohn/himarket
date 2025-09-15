@@ -36,11 +36,6 @@ public class AdpAIGatewayClient extends GatewayClient {
      * 执行HTTP操作
      */
     public <E> E executeHTTP(Function<HttpEntity<String>, E> function) {
-        if (restTemplate == null) {
-            throw new BusinessException(ErrorCode.UNSUPPORTED_OPERATION, 
-                "当前配置不支持HTTP模式，请配置baseUrl和port");
-        }
-        
         try {
             HttpEntity<String> requestEntity = createRequestEntity(null);
             return function.apply(requestEntity);
@@ -81,7 +76,7 @@ public class AdpAIGatewayClient extends GatewayClient {
                 }
             }
         } else {
-            throw new BusinessException(ErrorCode.UNSUPPORTED_OPERATION, "ADP 认证配置缺失，请配置 authSeed 或 authHeaders");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "ADP 认证配置缺失，请配置 authSeed 或 authHeaders");
         }
         
         return headers;

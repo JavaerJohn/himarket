@@ -20,7 +20,7 @@
 package com.alibaba.apiopenplatform.core.security;
 
 import cn.hutool.core.util.EnumUtil;
-import com.alibaba.apiopenplatform.core.constant.Common;
+import com.alibaba.apiopenplatform.core.constant.CommonConstants;
 import com.alibaba.apiopenplatform.support.enums.UserType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
@@ -71,7 +71,7 @@ public class ContextHolder {
         Authentication authentication = getAuthenticationFromContext();
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .filter(authority -> authority.startsWith(Common.ROLE_PREFIX))
+                .filter(authority -> authority.startsWith(CommonConstants.ROLE_PREFIX))
                 .map(authority -> authority.substring(5))
                 .map(role -> EnumUtil.likeValueOf(UserType.class, role))
                 .findFirst()

@@ -55,11 +55,11 @@ public class Portal extends BaseEntity {
     @Column(name = "admin_id", length = 64)
     private String adminId;
 
-    @Column(name = "portal_setting_config", columnDefinition = "text")
+    @Column(name = "portal_setting_config", columnDefinition = "json")
     @Convert(converter = PortalSettingConfigConverter.class)
     private PortalSettingConfig portalSettingConfig;
 
-    @Column(name = "portal_ui_config", columnDefinition = "text")
+    @Column(name = "portal_ui_config", columnDefinition = "json")
     @Convert(converter = PortalUiConfigConverter.class)
     private PortalUiConfig portalUiConfig;
 

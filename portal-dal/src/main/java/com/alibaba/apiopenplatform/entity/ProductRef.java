@@ -47,22 +47,22 @@ public class ProductRef extends BaseEntity {
     @Column(name = "gateway_id", length = 64)
     private String gatewayId;
 
-    @Column(name = "apig_ref_config", columnDefinition = "text")
+    @Column(name = "apig_ref_config", columnDefinition = "json")
     @Convert(converter = APIGRefConfigConverter.class)
     private APIGRefConfig apigRefConfig;
 
-    @Column(name = "adp_ai_gateway_ref_config", columnDefinition = "text")
+    @Column(name = "adp_ai_gateway_ref_config", columnDefinition = "json")
     @Convert(converter = APIGRefConfigConverter.class)
     private APIGRefConfig adpAIGatewayRefConfig;
 
-    @Column(name = "higress_ref_config", columnDefinition = "text")
+    @Column(name = "higress_ref_config", columnDefinition = "json")
     @Convert(converter = HigressRefConfigConverter.class)
     private HigressRefConfig higressRefConfig;
 
     @Column(name = "nacos_id", length = 64)
     private String nacosId;
 
-    @Column(name = "nacos_ref_config", columnDefinition = "text")
+    @Column(name = "nacos_ref_config", columnDefinition = "json")
     @Convert(converter = NacosRefConfigConverter.class)
     private NacosRefConfig nacosRefConfig;
 
@@ -70,10 +70,10 @@ public class ProductRef extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private SourceType sourceType;
 
-    @Column(name = "api_config", columnDefinition = "text")
+    @Column(name = "api_config", columnDefinition = "json")
     private String apiConfig;
 
-    @Column(name = "mcp_config", columnDefinition = "text")
+    @Column(name = "mcp_config", columnDefinition = "json")
     private String mcpConfig;
 
     @Column(name = "enabled")

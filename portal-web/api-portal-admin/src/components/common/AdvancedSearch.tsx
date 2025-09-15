@@ -29,16 +29,21 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   const [activeSearchName, setActiveSearchName] = useState<string>('');
   const [activeSearchValue, setActiveSearchValue] = useState<string>('');
   const [tagList, setTagList] = useState<Array<SearchParam & { value: string }>>([]);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   useEffect(() => {
-    setActiveSearchValue(''); // 清空输入框
-    setTagList([]); // 清空关联标签
-    onSearch(activeSearchName, '');
-  }, [activeSearchName]);
+    // 防止初始化时自动触发搜索
+    if (isInitialized && activeSearchName) {
+      setActiveSearchValue(''); // 清空输入框
+      setTagList([]); // 清空关联标签
+      onSearch(activeSearchName, '');
+    }
+  }, [activeSearchName, isInitialized]); // 移除 onSearch 避免无限循环
 
   useEffect(() => {
     if (searchParamsList.length > 0) {
       setActiveSearchName(searchParamsList[0].name);
+      setIsInitialized(true); // 标记为已初始化
     }
   }, [searchParamsList]);
 

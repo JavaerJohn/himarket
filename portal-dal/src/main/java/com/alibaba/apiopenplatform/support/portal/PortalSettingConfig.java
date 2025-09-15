@@ -26,11 +26,28 @@ import java.util.List;
 @Data
 public class PortalSettingConfig {
 
+    /**
+     * 内置的账号密码认证，默认开启
+     */
     private Boolean builtinAuthEnabled = true;
 
+    /**
+     * OIDC配置
+     */
     private List<OidcConfig> oidcConfigs;
 
+    /**
+     * 开启自动审批开发者注册
+     */
     private Boolean autoApproveDevelopers = false;
 
+    /**
+     * 开启自动审批订阅申请
+     */
     private Boolean autoApproveSubscriptions = true;
+
+    /**
+     * OAuth2配置
+     */
+    private List<OAuth2Config> oauth2Configs;
 }

@@ -12,7 +12,7 @@ function HomePage() {
     const fromCookie = params.get("fromCookie");
     const token = getTokenFromCookie();
     if (fromCookie && token) {
-      localStorage.setItem("token", token);
+      localStorage.setItem("access_token", token);
     }
   }, []);
 
@@ -20,11 +20,10 @@ function HomePage() {
     <Layout>
       <div className="text-center">
         <Title level={1} className="text-6xl font-bold text-gray-900 mb-6">
-          API Dev Portal
+          HiMarket AI 开放平台
         </Title>
         <Paragraph className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          Here you will have some good context in the subheading for your developer portal so users can know
-          more about your product
+          低成本接入企业级AI能力，助力业务快速创新
         </Paragraph>
         <Link to="/apis">
           <Button 
@@ -49,10 +48,10 @@ function HomePage() {
             <div className="relative z-10 h-64 flex items-center justify-center">
               <div className="text-white text-center">
                 <Title level={2} className="text-3xl font-bold mb-4 text-white">
-                  Explore our APIs
+                  探索 AI API 服务
                 </Title>
                 <Paragraph className="text-purple-100 text-lg">
-                  Discover powerful APIs to enhance your applications
+                  丰富多样的 AI 能力，助您打造智能应用
                 </Paragraph>
               </div>
             </div>

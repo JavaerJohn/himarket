@@ -1,20 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import api from "../lib/api";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import {
   Card,
-  Descriptions,
   Alert,
-  Collapse,
   Button,
   message,
   Tabs,
   Row,
   Col,
+  Collapse,
 } from "antd";
-import MonacoEditor from "react-monaco-editor";
 import ReactMarkdown from "react-markdown";
 import { ProductType } from "../types";
 import type {
@@ -24,10 +22,6 @@ import type {
   ApiResponse,
 } from "../types";
 import * as yaml from "js-yaml";
-import { 
-  FromTypeMap, 
-  SourceMap 
-} from "../lib/statusUtils";
 import remarkGfm from 'remark-gfm';
 import 'react-markdown-editor-lite/lib/index.css'
 
@@ -98,7 +92,7 @@ function McpDetail() {
   };
 
   // 生成连接配置的函数
-  const generateConnectionConfig = (
+  const generateConnectionConfig = useCallback((
     domains: Array<{ domain: string; protocol: string }> | null | undefined,
     path: string | null | undefined,
     serverName: string,
@@ -117,7 +111,11 @@ function McpDetail() {
     if (domains && domains.length > 0 && path) {
       const domain = domains[0];
       const baseUrl = `${domain.protocol}://${domain.domain}`;
-      const endpoint = `${baseUrl}${path}`;
+      let endpoint = `${baseUrl}${path}`;
+
+      if (mcpConfig?.meta?.source === 'ADP_AI_GATEWAY') {
+        endpoint = `${baseUrl}/mcp-servers${path}`;
+      }
 
       const httpConfig = `{
   "mcpServers": {
@@ -130,6 +128,7 @@ function McpDetail() {
       const sseConfig = `{
   "mcpServers": {
     "${serverName}": {
+      "type": "sse",
       "url": "${endpoint}/sse"
     }
   }
@@ -145,7 +144,7 @@ function McpDetail() {
     setHttpJson("");
     setSseJson("");
     setLocalJson("");
-  };
+  }, [mcpConfig]);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -175,14 +174,6 @@ function McpDetail() {
                   setParsedTools(parsedConfig.tools);
                 }
               }
-
-              // 生成连接配置
-              generateConnectionConfig(
-                mcpProduct.mcpConfig.mcpServerConfig.domains,
-                mcpProduct.mcpConfig.mcpServerConfig.path,
-                mcpProduct.mcpConfig.mcpServerName,
-                mcpProduct.mcpConfig.mcpServerConfig.rawConfig
-              );
             }
           }
         } else {
@@ -197,6 +188,18 @@ function McpDetail() {
     };
     fetchDetail();
   }, [mcpName]);
+
+  // 监听 mcpConfig 变化，重新生成连接配置
+  useEffect(() => {
+    if (mcpConfig) {
+      generateConnectionConfig(
+        mcpConfig.mcpServerConfig.domains,
+        mcpConfig.mcpServerConfig.path,
+        mcpConfig.mcpServerName,
+        mcpConfig.mcpServerConfig.rawConfig
+      );
+    }
+  }, [mcpConfig]);
 
   const handleCopy = async (text: string) => {
     try {
@@ -241,7 +244,6 @@ function McpDetail() {
   }
 
   const { name, description, status, category, enableConsumerAuth } = data;
-  const currentMcpConfig = mcpConfig;
   const hasLocalConfig = Boolean(mcpConfig?.mcpServerConfig.rawConfig);
 
 
@@ -263,7 +265,7 @@ function McpDetail() {
       {/* 主要内容区域 - 左右布局 */}
       <Row gutter={24}>
         {/* 左侧内容 */}
-        <Col span={16}>
+        <Col span={15}>
           <Card className="mb-6">
             <Tabs
               defaultActiveKey="overview"
@@ -272,295 +274,163 @@ function McpDetail() {
                   key: "overview",
                   label: "Overview",
                   children: data.document ? (
-                    <div className="prose custom-html-style h-[500px] overflow-auto">
+                    <div className="prose custom-html-style">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.document}</ReactMarkdown>
                     </div>
                   ) : (
                     <div className="text-gray-500 text-center py-8">
-                      暂无文档内容
+                      No overview available
                     </div>
                   ),
                 },
                 {
-                  key: "config",
-                  label: "MCP Config",
-                  children: currentMcpConfig ? (
-                    <div>
-                      <Descriptions column={1} bordered size="small">
-                        <Descriptions.Item label="MCP Server Name">
-                          {mcpConfig?.mcpServerName || "无"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="来源类型">
-                          {mcpConfig?.meta?.fromType
-                            ? FromTypeMap[mcpConfig.meta.fromType] ||
-                              mcpConfig.meta.fromType
-                            : "无"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="来源">
-                          {mcpConfig?.meta?.source
-                            ? SourceMap[mcpConfig.meta.source] ||
-                              mcpConfig.meta.source
-                            : "无"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="路径">
-                          {mcpConfig?.mcpServerConfig.path || "无"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="运行模式">
-                          {hasLocalConfig ? "Local Mode" : "SSE/HTTP Mode"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="域名配置">
-                          {mcpConfig?.mcpServerConfig.domains &&
-                          mcpConfig.mcpServerConfig.domains.length > 0
-                            ? mcpConfig.mcpServerConfig.domains.map(
-                                (
-                                  d: { domain: string; protocol: string },
-                                  i: number
-                                ) => (
-                                  <div key={i} className="mb-2">
+                  key: "tools",
+                  label: `Tools (${parsedTools.length})`,
+                  children: parsedTools.length > 0 ? (
+                    <div className="border border-gray-200 rounded-lg bg-gray-50">
+                      {parsedTools.map((tool, idx) => (
+                        <div key={idx} className={idx < parsedTools.length - 1 ? "border-b border-gray-200" : ""}>
+                          <Collapse
+                            ghost
+                            expandIconPosition="end"
+                            items={[{
+                              key: idx.toString(),
+                              label: tool.name,
+                              children: (
+                                <div className="px-4 pb-2">
+                                  <div className="text-gray-600 mb-4">{tool.description}</div>
+                                  
+                                  {tool.args && tool.args.length > 0 && (
                                     <div>
-                                      <strong>域名:</strong> {d.domain}
+                                      <p className="font-medium text-gray-700 mb-3">输入参数:</p>
+                                      {tool.args.map((arg, argIdx) => (
+                                        <div key={argIdx} className="mb-3">
+                                          <div className="flex items-center mb-2">
+                                            <span className="font-medium text-gray-800 mr-2">{arg.name}</span>
+                                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded mr-2">
+                                              {arg.type}
+                                            </span>
+                                            {arg.required && (
+                                              <span className="text-red-500 text-xs mr-2">*</span>
+                                            )}
+                                            {arg.description && (
+                                              <span className="text-xs text-gray-500">
+                                                {arg.description}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <input
+                                            type="text"
+                                            placeholder={arg.description || `请输入${arg.name}`}
+                                            className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                          />
+                                        </div>
+                                      ))}
                                     </div>
-                                    <div>
-                                      <strong>协议:</strong> {d.protocol}
-                                    </div>
-                                  </div>
-                                )
-                              )
-                            : "无"}
-                        </Descriptions.Item>
-                      </Descriptions>
+                                  )}
+                                  
+                                  {(!tool.args || tool.args.length === 0) && (
+                                    <div className="text-gray-500 text-sm">No parameters required</div>
+                                  )}
+                                </div>
+                              ),
+                            }]}
+                          />
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-gray-500 text-center py-8">
-                      暂无MCP配置信息
+                      No tools available
                     </div>
                   ),
-                },
-                                  {
-                    key: "tools",
-                    label: `Tools (${parsedTools.length})`,
-                    children:
-                      parsedTools.length > 0 ? (
-                        <Collapse accordion>
-                          {parsedTools.map((tool, idx) => (
-                          <Collapse.Panel header={tool.name} key={idx}>
-                            <div className="mb-2 text-gray-600">
-                              {tool.description}
-                            </div>
-                            <div className="mb-2 font-bold">输入参数：</div>
-                            <div className="space-y-2">
-                              {tool.args?.map(
-                                (
-                                  arg: {
-                                    name: string;
-                                    description: string;
-                                    type: string;
-                                    required: boolean;
-                                    position: string;
-                                    default?: string;
-                                    enum?: string[];
-                                  },
-                                  argIdx: number
-                                ) => (
-                                  <div
-                                    key={argIdx}
-                                    className="flex flex-col mb-2"
-                                  >
-                                    <div className="flex items-center mb-1">
-                                      <span className="font-medium mr-2">
-                                        {arg.name}
-                                      </span>
-                                      <span className="text-xs text-gray-500 mr-2">
-                                        ({arg.type})
-                                      </span>
-                                      {arg.required && (
-                                        <span className="text-red-500 text-xs">
-                                          *
-                                        </span>
-                                      )}
-                                    </div>
-                                    {arg.description && (
-                                      <div className="text-xs text-gray-500 mb-1">
-                                        {arg.description}
-                                      </div>
-                                    )}
-                                    <input
-                                      disabled
-                                      className="border rounded px-2 py-1 text-sm bg-gray-100 w-full max-w-md"
-                                      placeholder={arg.default ?? ""}
-                                    />
-                                  </div>
-                                )
-                              )}
-                              {(!tool.args || tool.args.length === 0) && (
-                                <span className="text-gray-400">无参数</span>
-                              )}
-                            </div>
-                          </Collapse.Panel>
-                        ))}
-                      </Collapse>
-                    ) : (
-                      <div className="text-gray-500 text-center py-8">
-                        暂无工具配置
-                      </div>
-                    ),
                 },
               ]}
             />
           </Card>
         </Col>
 
-        {/* 右侧配置信息 */}
-        <Col span={8}>
-
-          {/* 连接配置 */}
+        {/* 右侧连接指导 */}
+        <Col span={9}>
           {mcpConfig && (
-            <Card title="连接配置" className="mb-6">
-              <Tabs
-                defaultActiveKey={hasLocalConfig ? "local" : "sse"}
-                items={
-                  hasLocalConfig
-                    ? [
-                        {
-                          key: "local",
-                          label: "Local Config",
-                          children: (
-                            <div className="relative">
-                              <div className="absolute top-2 right-2">
+            <Card className="mb-6">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+                <Tabs
+                  size="small" 
+                  defaultActiveKey={hasLocalConfig ? "local" : (httpJson ? "http" : "sse")}
+                  items={
+                    hasLocalConfig
+                      ? [
+                          {
+                            key: "local",
+                            label: "Local Config",
+                            children: (
+                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
                                 <Button
                                   size="small"
+                                  className="absolute top-2 right-2 z-10"
                                   onClick={() => handleCopy(localJson)}
                                 >
-                                  复制
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
+                                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
+                                  </svg>
                                 </Button>
+                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                  <pre className="whitespace-pre-wrap">{localJson}</pre>
+                                </div>
                               </div>
-                              <div
-                                style={{
-                                  width: "100%",
-                                  overflowX: "auto",
-                                  height: "200px",
-                                }}
-                              >
-                                <MonacoEditor
-                                  language="json"
-                                  theme="vs-dark"
-                                  value={localJson}
-                                  options={{
-                                    readOnly: true,
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    scrollbar: {
-                                      vertical: "visible",
-                                      horizontal: "visible",
-                                    },
-                                    wordWrap: "off",
-                                    lineNumbers: "on",
-                                    automaticLayout: true,
-                                    fontSize: 12,
-                                    copyWithSyntaxHighlighting: true,
-                                    contextmenu: true,
-                                  }}
-                                  height="200"
-                                />
-                              </div>
-                            </div>
-                          ),
-                        },
-                      ]
-                    : [
-                        {
-                          key: "http",
-                          label: "HTTP Config",
-                          children: (
-                            <div className="relative">
-                              <div className="absolute top-2 right-2">
+                            ),
+                          },
+                        ]
+                      : [
+                          {
+                            key: "sse",
+                            label: "SSE",
+                            children: (
+                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
                                 <Button
                                   size="small"
-                                  onClick={() => handleCopy(httpJson)}
-                                >
-                                  复制
-                                </Button>
-                              </div>
-                              <div
-                                style={{
-                                  width: "100%",
-                                  overflowX: "auto",
-                                  height: "200px",
-                                }}
-                              >
-                                <MonacoEditor
-                                  language="json"
-                                  theme="vs-dark"
-                                  value={httpJson}
-                                  options={{
-                                    readOnly: true,
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    scrollbar: {
-                                      vertical: "visible",
-                                      horizontal: "visible",
-                                    },
-                                    wordWrap: "off",
-                                    lineNumbers: "on",
-                                    automaticLayout: true,
-                                    fontSize: 12,
-                                    copyWithSyntaxHighlighting: true,
-                                    contextmenu: true,
-                                  }}
-                                  height="200"
-                                />
-                              </div>
-                            </div>
-                          ),
-                        },
-                        {
-                          key: "sse",
-                          label: "SSE Config",
-                          children: (
-                            <div className="relative">
-                              <div className="absolute top-2 right-2">
-                                <Button
-                                  size="small"
+                                  className="absolute top-2 right-2 z-10"
                                   onClick={() => handleCopy(sseJson)}
                                 >
-                                  复制
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
+                                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
+                                  </svg>
                                 </Button>
+                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                  <pre className="whitespace-pre-wrap">{sseJson}</pre>
+                                </div>
                               </div>
-                              <div
-                                style={{
-                                  width: "100%",
-                                  overflowX: "auto",
-                                  height: "200px",
-                                }}
-                              >
-                                <MonacoEditor
-                                  language="json"
-                                  theme="vs-dark"
-                                  value={sseJson}
-                                  options={{
-                                    readOnly: true,
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    scrollbar: {
-                                      vertical: "visible",
-                                      horizontal: "visible",
-                                    },
-                                    wordWrap: "off",
-                                    lineNumbers: "on",
-                                    automaticLayout: true,
-                                    fontSize: 12,
-                                    copyWithSyntaxHighlighting: true,
-                                    contextmenu: true,
-                                  }}
-                                  height="200"
-                                />
+                            ),
+                          },
+                          {
+                            key: "http",
+                            label: "Streaming HTTP",
+                            children: (
+                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                <Button
+                                  size="small"
+                                  className="absolute top-2 right-2 z-10"
+                                  onClick={() => handleCopy(httpJson)}
+                                >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
+                                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
+                                  </svg>
+                                </Button>
+                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                  <pre className="whitespace-pre-wrap">{httpJson}</pre>
+                                </div>
                               </div>
-                            </div>
-                          ),
-                        },
-                      ]
-                }
-              />
+                            ),
+                          },
+                        ]
+                  }
+                />
+              </div>
             </Card>
           )}
         </Col>

@@ -49,7 +49,7 @@ public class ConsumerRef extends BaseEntity {
     @Column(name = "gw_consumer_id", length = 64, nullable = false)
     private String gwConsumerId;
 
-    @Column(name = "gateway_config", columnDefinition = "text", nullable = false)
+    @Column(name = "gateway_config", columnDefinition = "json", nullable = false)
     @Convert(converter = GatewayConfigConverter.class)
     private GatewayConfig gatewayConfig;
 }

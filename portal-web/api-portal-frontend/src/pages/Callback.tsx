@@ -16,22 +16,22 @@ const Callback: React.FC = () => {
       return;
     }
 
-    // window.location.href = `${api.defaults.baseURL}/developers/callback?code=${code}&state=${state}`;
-
-    // 调用后端 callback
+    // 调用后端获取token
     api
       .post("/developers/token", { code, state })
       .then((res: any) => {
-        if (res && res.data && res.data.token) {
+        if (res && res.data && res.data.access_token) {
           message.success("登录成功！");
-          // 跳转首页并带上 token
-          window.location.href = `/?token=${res.data.token}`;
+          // 存储access_token
+          localStorage.setItem('access_token', res.data.access_token);
+          // 跳转首页
+          window.location.href = `/`;
         } else {
-          message.error("登录失败，未获取到 token");
+          message.error("登录失败，未获取到 access_token");
         }
       })
       .catch(() => {
-        // message.error("登录失败，请重试");
+        message.error("登录失败，请重试");
       });
   }, [location.search]);
 

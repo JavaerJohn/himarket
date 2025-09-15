@@ -19,7 +19,7 @@
 
 package com.alibaba.apiopenplatform.core.security;
 
-import com.alibaba.apiopenplatform.core.constant.Common;
+import com.alibaba.apiopenplatform.core.constant.CommonConstants;
 import com.alibaba.apiopenplatform.core.utils.TokenUtil;
 import com.alibaba.apiopenplatform.support.common.User;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +50,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/developers/authorize",
             "/developers/callback",
             "/developers/providers",
+            "/developers/oidc/authorize",
+            "/developers/oidc/callback",
+            "/developers/oidc/providers",
+            "/developers/oauth2/token",
             "/portal/swagger-ui.html",
             "/portal/swagger-ui/**",
             "/portal/v3/api-docs/**",
@@ -110,7 +114,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private void authenticateRequest(String token) {
         User user = TokenUtil.parseUser(token);
         // 设置认证信息
-        String role = Common.ROLE_PREFIX + user.getUserType().name();
+        String role = CommonConstants.ROLE_PREFIX + user.getUserType().name();
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 user.getUserId(),
                 null,

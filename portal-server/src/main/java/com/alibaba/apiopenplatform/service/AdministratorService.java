@@ -20,10 +20,7 @@
 package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.dto.result.AdminResult;
-import com.alibaba.apiopenplatform.entity.Administrator;
-import com.alibaba.apiopenplatform.dto.result.AuthResponseResult;
-
-import java.util.Optional;
+import com.alibaba.apiopenplatform.dto.result.AuthResult;
 
 /**
  * 管理员服务接口，定义管理员相关的核心操作方法
@@ -38,7 +35,7 @@ public interface AdministratorService {
      * @param password
      * @return
      */
-    AuthResponseResult login(String username, String password);
+    AuthResult login(String username, String password);
 
     /**
      * 管理员修改密码

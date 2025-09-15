@@ -19,6 +19,7 @@
 
 package com.alibaba.apiopenplatform.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.constant.Resources;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
@@ -94,7 +95,7 @@ public class NacosServiceImpl implements NacosService {
     public void createNacosInstance(CreateNacosParam param) {
         nacosInstanceRepository.findByNacosName(param.getNacosName())
                 .ifPresent(nacos -> {
-                    throw new BusinessException(ErrorCode.RESOURCE_EXIST, Resources.NACOS_INSTANCE, nacos.getNacosName());
+                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.NACOS_INSTANCE, param.getNacosName()));
                 });
 
         NacosInstance nacosInstance = param.convertTo();
@@ -105,7 +106,7 @@ public class NacosServiceImpl implements NacosService {
             // ensure not already exist
             boolean exists = nacosInstanceRepository.findByNacosId(providedId).isPresent();
             if (exists) {
-                throw new BusinessException(ErrorCode.RESOURCE_EXIST, Resources.NACOS_INSTANCE, providedId);
+                throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.NACOS_INSTANCE, providedId));
             }
             nacosInstance.setNacosId(providedId);
         } else {
@@ -125,7 +126,7 @@ public class NacosServiceImpl implements NacosService {
                 .filter(name -> !name.equals(instance.getNacosName()))
                 .flatMap(nacosInstanceRepository::findByNacosName)
                 .ifPresent(nacos -> {
-                    throw new BusinessException(ErrorCode.RESOURCE_EXIST, Resources.NACOS_INSTANCE, nacos.getNacosName());
+                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.NACOS_INSTANCE, param.getNacosName()));
                 });
 
         param.update(instance);
@@ -143,35 +144,35 @@ public class NacosServiceImpl implements NacosService {
         try {
             // 创建MSE客户端
             Client client = new Client(param.toClientConfig());
-            
+
             // 构建请求
             ListClustersRequest request = new ListClustersRequest()
-                            .setRegionId(param.getRegionId())
-                            .setPageNum(pageable.getPageNumber() + 1)
-                            .setPageSize(pageable.getPageSize());
-            
+                    .setRegionId(param.getRegionId())
+                    .setPageNum(pageable.getPageNumber() + 1)
+                    .setPageSize(pageable.getPageSize());
+
             RuntimeOptions runtime = new RuntimeOptions();
-            
+
             // 调用MSE API获取集群列表
             ListClustersResponse response =
                     client.listClustersWithOptions(request, runtime);
-            
+
             // 转换响应结果，并过滤掉 clusterType 为 "Nacos-Ans" 的实例
-             Optional<List<MseNacosResult>> nacosResults = Optional.ofNullable(response.getBody())
+            Optional<List<MseNacosResult>> nacosResults = Optional.ofNullable(response.getBody())
                     .map(ListClustersResponseBody::getData)
                     .map(clusters -> clusters.stream()
                             .filter(cluster -> {
                                 String type = cluster.getClusterType();
                                 return (type == null || "Nacos-Ans".equalsIgnoreCase(type))
-                                    && cluster.getVersionCode().startsWith("NACOS_3");
+                                        && cluster.getVersionCode().startsWith("NACOS_3");
                             })
                             .map(MseNacosResult::fromListClustersResponseBodyData)
                             .collect(Collectors.toList())
                     );
 
             if (nacosResults.isPresent()) {
-                    // 返回分页结果
-                int total = response.getBody() != null && response.getBody().getTotalCount() != null ? 
+                // 返回分页结果
+                int total = response.getBody() != null && response.getBody().getTotalCount() != null ?
                         response.getBody().getTotalCount().intValue() : 0;
                 return PageResult.of(nacosResults.get(), pageable.getPageNumber(), pageable.getPageSize(), total);
             }
@@ -252,10 +253,10 @@ public class NacosServiceImpl implements NacosService {
         mcpConfig.setMcpServerName(detail.getName());
 
         MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
-        
+
         if (detail.getLocalServerConfig() != null) {
             serverConfig.setRawConfig(detail.getLocalServerConfig());
-            serverConfig.setTransportMode(MCPConfigResult.MCPTransportMode.LOCAL);
+            serverConfig.setTransportMode(MCPConfigResult.MCPTransportMode.LOCAL.getMode());
         } else if (detail.getRemoteServerConfig() != null || (detail.getBackendEndpoints() != null && !detail.getBackendEndpoints().isEmpty())) {
             Object remoteConfig = buildRemoteConnectionConfig(detail);
             serverConfig.setRawConfig(remoteConfig);
@@ -265,7 +266,7 @@ public class NacosServiceImpl implements NacosService {
             defaultConfig.put("name", detail.getName());
             serverConfig.setRawConfig(defaultConfig);
         }
-        
+
         mcpConfig.setMcpServerConfig(serverConfig);
 
         if (detail.getToolSpec() != null) {
@@ -288,13 +289,13 @@ public class NacosServiceImpl implements NacosService {
 
         return mcpConfig;
     }
-    
+
     private Object buildRemoteConnectionConfig(McpServerDetailInfo detail) {
         List<?> backendEndpoints = detail.getBackendEndpoints();
-        
+
         if (backendEndpoints != null && !backendEndpoints.isEmpty()) {
             Object firstEndpoint = backendEndpoints.get(0);
-            
+
             Map<String, Object> connectionConfig = new HashMap<>();
             Map<String, Object> mcpServers = new HashMap<>();
             Map<String, Object> serverConfig = new HashMap<>();
@@ -316,7 +317,7 @@ public class NacosServiceImpl implements NacosService {
         basicConfig.put("protocol", "http");
         return basicConfig;
     }
-    
+
     private String extractEndpointUrl(Object endpoint) {
         if (endpoint == null) {
             return null;
@@ -328,7 +329,7 @@ public class NacosServiceImpl implements NacosService {
 
         if (endpoint instanceof Map) {
             Map<?, ?> endpointMap = (Map<?, ?>) endpoint;
-            
+
             String url = getStringValue(endpointMap, "url");
             if (url != null) return url;
 
@@ -338,24 +339,24 @@ public class NacosServiceImpl implements NacosService {
             String host = getStringValue(endpointMap, "host");
             String port = getStringValue(endpointMap, "port");
             String path = getStringValue(endpointMap, "path");
-            
+
             if (host != null) {
                 StringBuilder urlBuilder = new StringBuilder();
                 String protocol = getStringValue(endpointMap, "protocol");
                 urlBuilder.append(protocol != null ? protocol : "http").append("://");
                 urlBuilder.append(host);
-                
+
                 if (port != null && !port.isEmpty()) {
                     urlBuilder.append(":").append(port);
                 }
-                
+
                 if (path != null && !path.isEmpty()) {
                     if (!path.startsWith("/")) {
                         urlBuilder.append("/");
                     }
                     urlBuilder.append(path);
                 }
-                
+
                 return urlBuilder.toString();
             }
         }
@@ -374,7 +375,7 @@ public class NacosServiceImpl implements NacosService {
 
     private String extractUrlFromMcpEndpointInfo(Object endpoint) {
         String[] possibleFieldNames = {"url", "endpointUrl", "address", "host", "endpoint"};
-        
+
         for (String fieldName : possibleFieldNames) {
             try {
                 java.lang.reflect.Field field = endpoint.getClass().getDeclaredField(fieldName);
@@ -389,21 +390,21 @@ public class NacosServiceImpl implements NacosService {
                 continue;
             }
         }
-        
+
         java.lang.reflect.Field[] fields = endpoint.getClass().getDeclaredFields();
-        
+
         String host = null;
         String port = null;
         String path = null;
         String protocol = null;
-        
+
         for (java.lang.reflect.Field field : fields) {
             try {
                 field.setAccessible(true);
                 Object value = field.get(endpoint);
                 if (value != null && !value.toString().trim().isEmpty()) {
                     String fieldName = field.getName().toLowerCase();
-                    
+
                     if (fieldName.contains("host") || fieldName.contains("ip") || fieldName.contains("address")) {
                         host = value.toString();
                     } else if (fieldName.contains("port")) {
@@ -418,32 +419,32 @@ public class NacosServiceImpl implements NacosService {
                 continue;
             }
         }
-        
+
         if (host != null) {
             StringBuilder urlBuilder = new StringBuilder();
             urlBuilder.append(protocol != null ? protocol : "http").append("://");
             urlBuilder.append(host);
-            
+
             if (port != null && !port.isEmpty()) {
                 urlBuilder.append(":").append(port);
             }
-            
+
             if (path != null && !path.isEmpty()) {
                 if (!path.startsWith("/")) {
                     urlBuilder.append("/");
                 }
                 urlBuilder.append(path);
             }
-            
+
             return urlBuilder.toString();
         }
-        
+
         return endpoint.toString();
     }
 
     private NacosInstance findNacosInstance(String nacosId) {
         return nacosInstanceRepository.findByNacosId(nacosId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.NACOS_INSTANCE, nacosId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.NACOS_INSTANCE, nacosId));
     }
 
     private McpMaintainerService buildDynamicMcpService(NacosInstance nacosInstance) {
@@ -457,8 +458,8 @@ public class NacosServiceImpl implements NacosService {
             properties.setProperty(PropertyKeyConst.PASSWORD, nacosInstance.getPassword());
         }
         properties.setProperty(PropertyKeyConst.CONTEXT_PATH, DEFAULT_CONTEXT_PATH);
-    // instance no longer stores namespace; leave namespace empty to let requests use default/public
-    // if consumers need a specific namespace, they should call an overload that accepts it
+        // instance no longer stores namespace; leave namespace empty to let requests use default/public
+        // if consumers need a specific namespace, they should call an overload that accepts it
         if (Objects.nonNull(nacosInstance.getAccessKey())) {
             properties.setProperty(PropertyKeyConst.ACCESS_KEY, nacosInstance.getAccessKey());
         }

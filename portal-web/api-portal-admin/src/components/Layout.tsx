@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { HomeOutlined, GlobalOutlined, AppstoreOutlined, DesktopOutlined, UserOutlined, MenuOutlined, SettingOutlined } from '@ant-design/icons'
-import { Button, Skeleton } from 'antd'
+import { GlobalOutlined, AppstoreOutlined, DesktopOutlined, UserOutlined, MenuOutlined, SettingOutlined } from '@ant-design/icons'
+import { Button } from 'antd'
 import { isAuthenticated, removeToken } from '../lib/utils'
 
 interface NavigationItem {
@@ -12,11 +12,7 @@ interface NavigationItem {
   children?: NavigationItem[]
 }
 
-interface LayoutProps {
-  loading?: boolean;
-}
-
-const Layout: React.FC<LayoutProps> = ({ loading = false }) => {
+const Layout: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false)
@@ -127,7 +123,7 @@ const Layout: React.FC<LayoutProps> = ({ loading = false }) => {
                 className="hover:bg-gray-100"
               />
             </div>
-          <span className="text-2xl font-bold">AI开放平台</span>
+          <span className="text-2xl font-bold">HiMarket</span>
         </div>
         {/* 顶部右侧用户信息或登录按钮 */}
         {isLoggedIn ? (
@@ -160,50 +156,7 @@ const Layout: React.FC<LayoutProps> = ({ loading = false }) => {
         {/* 主内容区域 */}
         <div className="flex-1 min-h-screen overflow-hidden">
           <main className="p-8 w-full max-w-full overflow-x-hidden">
-            {loading ? (
-              <div className="space-y-8">
-                {/* 页面标题骨架屏 */}
-                <div className="mb-8">
-                  <Skeleton.Input active size="large" style={{ width: 300, height: 48, marginBottom: 16 }} />
-                  <Skeleton.Input active size="small" style={{ width: '60%', height: 24 }} />
-                </div>
-                
-                {/* 操作按钮骨架屏 */}
-                <div className="flex justify-end mb-6">
-                  <Skeleton.Button active size="large" style={{ width: 120, height: 40 }} />
-                </div>
-                
-                {/* 搜索/过滤器骨架屏 */}
-                <div className="mb-6">
-                  <Skeleton.Input active size="large" style={{ width: '100%', height: 40 }} />
-                </div>
-                
-                {/* 内容区域骨架屏 */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <div key={index} className="h-full rounded-lg shadow-lg bg-white p-4">
-                      <div className="flex items-start space-x-4">
-                        <Skeleton.Avatar size={48} active />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-2">
-                            <Skeleton.Input active size="small" style={{ width: 120 }} />
-                            <Skeleton.Input active size="small" style={{ width: 60 }} />
-                          </div>
-                          <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 12 }} />
-                          <Skeleton.Input active size="small" style={{ width: '80%', marginBottom: 8 }} />
-                          <div className="flex items-center justify-between">
-                            <Skeleton.Input active size="small" style={{ width: 60 }} />
-                            <Skeleton.Input active size="small" style={{ width: 80 }} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <Outlet />
-            )}
+            <Outlet />
           </main>
         </div>
       </div>

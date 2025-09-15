@@ -26,7 +26,7 @@ import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTUtil;
 import cn.hutool.jwt.signers.JWTSignerUtil;
-import com.alibaba.apiopenplatform.core.constant.Common;
+import com.alibaba.apiopenplatform.core.constant.CommonConstants;
 import com.alibaba.apiopenplatform.support.common.User;
 import com.alibaba.apiopenplatform.support.enums.UserType;
 
@@ -37,8 +37,6 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/***
- */
 public class TokenUtil {
 
     private static String JWT_SECRET;
@@ -93,8 +91,8 @@ public class TokenUtil {
         long now = System.currentTimeMillis();
 
         Map<String, String> claims = MapUtil.<String, String>builder()
-                .put(Common.USER_TYPE, userType.name())
-                .put(Common.USER_ID, userId)
+                .put(CommonConstants.USER_TYPE, userType.name())
+                .put(CommonConstants.USER_ID, userId)
                 .build();
 
         return JWT.create()
@@ -134,18 +132,18 @@ public class TokenUtil {
 
     public static String getTokenFromRequest(HttpServletRequest request) {
         // 从Header中获取token
-        String authHeader = request.getHeader(Common.AUTHORIZATION_HEADER);
+        String authHeader = request.getHeader(CommonConstants.AUTHORIZATION_HEADER);
 
         String token = null;
-        if (authHeader != null && authHeader.startsWith(Common.BEARER_PREFIX)) {
-            token = authHeader.substring(Common.BEARER_PREFIX.length());
+        if (authHeader != null && authHeader.startsWith(CommonConstants.BEARER_PREFIX)) {
+            token = authHeader.substring(CommonConstants.BEARER_PREFIX.length());
         }
 
         // 从Cookie中获取token
         if (StrUtil.isBlank(token)) {
             token = Optional.ofNullable(request.getCookies())
                     .flatMap(cookies -> Arrays.stream(cookies)
-                            .filter(cookie -> Common.AUTH_TOKEN_COOKIE.equals(cookie.getName()))
+                            .filter(cookie -> CommonConstants.AUTH_TOKEN_COOKIE.equals(cookie.getName()))
                             .map(Cookie::getValue)
                             .findFirst())
                     .orElse(null);
@@ -202,8 +200,7 @@ public class TokenUtil {
         INVALID_TOKENS.entrySet().removeIf(entry -> entry.getValue() <= now);
     }
 
-    public static int getRevokedTokenCount() {
-        cleanExpiredTokens();
-        return INVALID_TOKENS.size();
+    public static long getTokenExpiresIn() {
+        return getJwtExpireMillis() / 1000;
     }
 }

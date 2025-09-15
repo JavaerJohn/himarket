@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 // import { useLocation } from 'react-router-dom'
 
-import api from '../lib/api'
+import api, { getOidcProviders, type IdpResult } from '../lib/api'
 import aliyunIcon from '../assets/aliyun.png';
 import githubIcon from '../assets/github.png';
 import googleIcon from '../assets/google.png';
+import {message} from "antd";
 
 const providerIcons: Record<string, string> = {
   aliyun: aliyunIcon,
@@ -12,10 +13,6 @@ const providerIcons: Record<string, string> = {
   google: googleIcon,
 }
 
-interface Provider {
-  provider: string;
-  displayName?: string;
-}
 
 interface Identity {
   provider: string;
@@ -65,17 +62,35 @@ const parseUserProfile = (identity: Identity): UserProfile => {
 };
 
 const Profile: React.FC = () => {
-  const [providers, setProviders] = useState<Provider[]>([])
-  const [bindingStr, setBindingStr] = useState('')
+  const [providers, setProviders] = useState<IdpResult[]>([])
   const [identities, setIdentities] = useState<Identity[]>([])
 
   useEffect(() => {
-    api.post('/developers/providers')
-      .then((res: Provider[] | { data: Provider[] }) => {
-        if (Array.isArray(res)) setProviders(res)
-        else setProviders(res.data || [])
+    // 使用OidcController的接口获取OIDC提供商
+    getOidcProviders()
+      .then((response: any) => {
+        console.log('OIDC providers response:', response);
+        
+        // 处理不同的响应格式
+        let providersData: IdpResult[];
+        if (Array.isArray(response)) {
+          providersData = response;
+        } else if (response && Array.isArray(response.data)) {
+          providersData = response.data;
+        } else if (response && response.data) {
+          console.warn('Unexpected response format:', response);
+          providersData = [];
+        } else {
+          providersData = [];
+        }
+        
+        console.log('Processed providers data:', providersData);
+        setProviders(providersData);
       })
-      .catch(() => setProviders([]))
+      .catch((error) => {
+        console.error('Failed to fetch OIDC providers:', error);
+        setProviders([]);
+      });
   }, [])
 
   useEffect(() => {
@@ -87,18 +102,16 @@ const Profile: React.FC = () => {
       .catch(() => setIdentities([]))
   }, [])
 
-  // 生成随机串
-  const randomStr = () => Math.random().toString(36).slice(2, 10)
-
-  // 拼接BINDING串
+  // OIDC绑定功能 - 暂时简化实现
   const handleBinding = (provider: string) => {
-    const rand = randomStr()
-    const str = `BINDING|${rand}|${provider}`
-    setBindingStr(str)
-    // 跳转到OIDC授权接口
-    const state = encodeURIComponent(str)
-    const url = `${api.defaults.baseURL}/developers/authorize?provider=${provider}&state=${state} `
-    window.location.href = url
+    // 由于简化了OIDC流程，绑定功能需要单独实现
+    // 暂时提示用户功能开发中
+    message.info(`${provider} 账号绑定功能开发中，敬请期待`);
+    
+    // 后续可以考虑以下实现方案：
+    // 1. 为绑定功能创建专门的回调页面
+    // 2. 通过URL参数区分登录和绑定模式
+    // 3. 或者使用弹窗方式处理绑定流程
   }
 
   // 判断provider是否已绑定
@@ -123,7 +136,7 @@ const Profile: React.FC = () => {
           </div>
         )}
         <div className="w-full flex flex-col gap-3 mb-6">
-          {providers.length === 0 ? (
+          {!Array.isArray(providers) || providers.length === 0 ? (
             <div className="text-gray-400 text-center">暂无可用第三方</div>
           ) : (
             providers.map((provider) => {
@@ -135,7 +148,7 @@ const Profile: React.FC = () => {
                   className={`w-full flex items-center gap-2 py-2 rounded border text-base font-medium shadow-sm px-3 ${bound ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-gray-900'}`}
                 >
                   {icon && <img src={icon} alt={provider.provider} className="w-6 h-6" />}
-                  <span className="flex-1">{provider.displayName || provider.provider}</span>
+                  <span className="flex-1">{provider.name || provider.provider}</span>
                   {bound ? (
                     <span className="px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-semibold">已绑定</span>
                   ) : (
@@ -151,11 +164,6 @@ const Profile: React.FC = () => {
             })
           )}
         </div>
-        {bindingStr && (
-          <div className="w-full break-all bg-gray-100 p-4 rounded text-gray-800 text-sm border border-gray-200">
-            {bindingStr}
-          </div>
-        )}
       </div>
     </div>
   )

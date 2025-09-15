@@ -65,7 +65,7 @@ public class ExceptionAdvice {
         log.error("Validation failed", e);
         return ResponseEntity
                 .status(ErrorCode.INVALID_PARAMETER.getStatus())
-                .body(Response.fail(ErrorCode.INVALID_PARAMETER.getCode(), message));
+                .body(Response.fail(ErrorCode.INVALID_PARAMETER.name(), message));
     }
 
     @ExceptionHandler(Exception.class)
@@ -74,7 +74,7 @@ public class ExceptionAdvice {
         return ResponseEntity
                 .status(ErrorCode.INTERNAL_ERROR.getStatus())
                 .body(Response.fail(
-                        ErrorCode.INTERNAL_ERROR.getCode(),
+                        ErrorCode.INTERNAL_ERROR.name(),
                         ErrorCode.INTERNAL_ERROR.getMessage(e.getMessage())
                 ));
     }

@@ -1,4 +1,11 @@
-python /home/admin/bin/replace_var.py /etc/nginx/default.d/proxy.conf
+#!/bin/sh
+
+if [ -z "$HIMARKET_SERVER" ]; then
+    echo "HIMARKET_SERVER not set"
+    exit 1
+fi
+sed -i "s|{{ HIMARKET_SERVER }}|${HIMARKET_SERVER}|g" /etc/nginx/default.d/proxy.conf
+
 nginx
-echo "nginx start..."
+echo "HiMarket Admin started successfully"
 tail -f /var/log/nginx/access.log

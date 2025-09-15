@@ -157,7 +157,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         // Consumer仅一份Credential
         credentialRepository.findByConsumerId(consumerId)
                 .ifPresent(c -> {
-                    throw new BusinessException(ErrorCode.RESOURCE_EXIST, Resources.CONSUMER_CREDENTIAL, consumerId);
+                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在凭证", Resources.CONSUMER, consumerId));
                 });
         ConsumerCredential credential = param.convertTo();
         credential.setConsumerId(consumerId);
@@ -191,7 +191,7 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public void updateCredential(String consumerId, UpdateCredentialParam param) {
         ConsumerCredential credential = credentialRepository.findByConsumerId(consumerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.CONSUMER_CREDENTIAL, consumerId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CONSUMER_CREDENTIAL, consumerId));
 
         param.update(credential);
 
@@ -220,29 +220,29 @@ public class ConsumerServiceImpl implements ConsumerService {
                 findDevConsumer(consumerId) : findConsumer(consumerId);
         // 勿重复订阅
         if (subscriptionRepository.findByConsumerIdAndProductId(consumerId, param.getProductId()).isPresent()) {
-            throw new BusinessException(ErrorCode.UNSUPPORTED_OPERATION, "重复订阅");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "重复订阅");
         }
 
         ProductResult product = productService.getProduct(param.getProductId());
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
         if (productRef == null) {
-            throw new BusinessException(ErrorCode.PRODUCT_API_NOT_FOUND, param.getProductId());
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "API产品未关联API");
         }
 
         // 非网关型不支持订阅
         if (productRef.getSourceType() != SourceType.GATEWAY) {
-            throw new BusinessException(ErrorCode.PRODUCT_TYPE_NOT_MATCH, param.getProductId());
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API产品不支持订阅");
         }
 
         ConsumerCredential credential = credentialRepository.findByConsumerId(consumerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.CONSUMER_CREDENTIAL, consumerId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CONSUMER_CREDENTIAL, consumerId));
 
         ProductSubscription subscription = param.convertTo();
         subscription.setConsumerId(consumerId);
-        
+
         // 检查产品级别的自动审批设置
         boolean autoApprove = false;
-        
+
         // 优先检查产品级别的autoApprove配置
         if (product.getAutoApprove() != null) {
             // 如果产品配置了autoApprove，直接使用产品级别的配置
@@ -256,7 +256,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                     && BooleanUtil.isTrue(portal.getPortalSettingConfig().getAutoApproveSubscriptions());
             log.info("使用平台级别自动审批配置: portalId={}, autoApprove={}", consumer.getPortalId(), autoApprove);
         }
-        
+
         if (autoApprove) {
             // 如果autoApprove为true，立即授权并设置为APPROVED状态
             ConsumerAuthConfig consumerAuthConfig = authorizeConsumer(consumer, credential, productRef);
@@ -266,7 +266,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             // 如果autoApprove为false，暂时不授权，设置为PENDING状态
             subscription.setStatus(SubscriptionStatus.PENDING);
         }
-        
+
         subscriptionRepository.save(subscription);
 
         SubscriptionResult r = new SubscriptionResult().convertFrom(subscription);
@@ -333,28 +333,28 @@ public class ConsumerServiceImpl implements ConsumerService {
         existsConsumer(consumerId);
 
         ProductSubscription subscription = subscriptionRepository.findByConsumerIdAndProductId(consumerId, productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.SUBSCRIPTION, productId));
-        
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.SUBSCRIPTION, StrUtil.format("{}:{}", productId, consumerId)));
+
         // 检查订阅状态，只有PENDING状态的订阅才能被审批
         if (subscription.getStatus() != SubscriptionStatus.PENDING) {
-            throw new BusinessException(ErrorCode.UNSUPPORTED_OPERATION, "只有待审批的订阅才能被审批");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "订阅已审批");
         }
-        
+
         // 获取消费者和凭证信息
         Consumer consumer = contextHolder.isDeveloper() ?
                 findDevConsumer(consumerId) : findConsumer(consumerId);
         ConsumerCredential credential = credentialRepository.findByConsumerId(consumerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.CONSUMER_CREDENTIAL, consumerId));
-        
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CONSUMER_CREDENTIAL, consumerId));
+
         // 获取产品引用信息
         ProductRefResult productRef = productService.getProductRef(productId);
         if (productRef == null) {
-            throw new BusinessException(ErrorCode.PRODUCT_API_NOT_FOUND, productId);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "API产品未关联API");
         }
-        
+
         // 执行授权操作
         ConsumerAuthConfig consumerAuthConfig = authorizeConsumer(consumer, credential, productRef);
-        
+
         // 更新订阅状态和授权配置
         subscription.setConsumerAuthConfig(consumerAuthConfig);
         subscription.setStatus(SubscriptionStatus.APPROVED);
@@ -368,21 +368,22 @@ public class ConsumerServiceImpl implements ConsumerService {
         }
         return result;
     }
+
     private Consumer findConsumer(String consumerId) {
         return consumerRepository.findByConsumerId(consumerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.CONSUMER, consumerId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CONSUMER, consumerId));
     }
 
     private Consumer findDevConsumer(String consumerId) {
         return consumerRepository.findByDeveloperIdAndConsumerId(contextHolder.getUser(), consumerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.CONSUMER, consumerId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CONSUMER, consumerId));
     }
 
     private void existsConsumer(String consumerId) {
         (contextHolder.isDeveloper() ?
                 consumerRepository.findByDeveloperIdAndConsumerId(contextHolder.getUser(), consumerId) :
                 consumerRepository.findByConsumerId(consumerId))
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.CONSUMER, consumerId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CONSUMER, consumerId));
     }
 
     private Specification<Consumer> buildConsumerSpec(QueryConsumerParam param) {

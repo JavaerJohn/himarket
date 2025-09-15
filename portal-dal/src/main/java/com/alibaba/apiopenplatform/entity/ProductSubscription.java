@@ -56,7 +56,7 @@ public class ProductSubscription extends BaseEntity {
     @Column(name = "status", length = 32, nullable = false)
     private SubscriptionStatus status;
 
-    @Column(name = "consumer_auth_config", columnDefinition = "text")
+    @Column(name = "consumer_auth_config", columnDefinition = "json")
     @Convert(converter = ConsumerAuthConfigConverter.class)
     private ConsumerAuthConfig consumerAuthConfig;
 }

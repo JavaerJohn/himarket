@@ -27,12 +27,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.List;
 
-/**
- * 开发者实体 JPA 仓库接口
- * 提供开发者相关的数据库操作方法
- *
- */
 public interface DeveloperRepository extends BaseRepository<Developer, Long> {
+
     Optional<Developer> findByDeveloperId(String developerId);
 
     Optional<Developer> findByUsername(String username);

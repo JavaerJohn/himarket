@@ -190,10 +190,6 @@ public class HigressClient extends GatewayClient {
                 .orElseThrow(() -> new RuntimeException("Failed to get Higress session token"));
     }
 
-    @Data
-    static class MCPServerInfo {
-    }
-
     @Override
     public void close() {
         HTTPClientFactory.closeClient(restTemplate);

@@ -20,6 +20,7 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.util.EnumUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.constant.Resources;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
@@ -77,7 +78,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     public void importGateway(ImportGatewayParam param) {
         gatewayRepository.findByGatewayId(param.getGatewayId())
                 .ifPresent(gateway -> {
-                    throw new BusinessException(ErrorCode.RESOURCE_EXIST, Resources.GATEWAY, param.getGatewayId());
+                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.GATEWAY, param.getGatewayId()));
                 });
 
         Gateway gateway = param.convertTo();
@@ -107,7 +108,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         Gateway gateway = findGateway(gatewayId);
         // 已有Product引用时不允许删除
         if (productRefRepository.existsByGatewayId(gatewayId)) {
-            throw new BusinessException(ErrorCode.UNSUPPORTED_OPERATION, "网关已被Product引用");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "网关已被Product引用");
         }
 
         gatewayRepository.delete(gateway);
@@ -226,7 +227,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
 
     private Gateway findGateway(String gatewayId) {
         return gatewayRepository.findByGatewayId(gatewayId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, Resources.GATEWAY, gatewayId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.GATEWAY, gatewayId));
     }
 
     private GatewayOperator getOperator(Gateway gateway) {
@@ -236,5 +237,11 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                     "No gateway operator found for gateway type: " + gateway.getGatewayType());
         }
         return gatewayOperator;
+    }
+
+    @Override
+    public String getDashboard(String gatewayId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).getDashboard(gateway);
     }
 }

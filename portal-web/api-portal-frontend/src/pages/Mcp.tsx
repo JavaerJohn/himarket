@@ -141,7 +141,7 @@ function McpPage() {
                       {server.name}
                     </Title>
                     <Tag color="green" className="text-xs">
-                      {server.mcpConfig?.mcpServerConfig?.transportMode || 'REMOTE'}
+                      {server.mcpConfig?.mcpServerConfig?.transportMode || 'remote'}
                     </Tag>
                   </div>
                   </div>
