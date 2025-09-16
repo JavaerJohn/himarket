@@ -733,7 +733,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
                       name="userNameField"
                       label="开发者名称"
                     >
-                      <Input placeholder="默认: username"/>
+                      <Input placeholder="默认: name"/>
                     </Form.Item>
                     <Form.Item
                       name="emailField"
