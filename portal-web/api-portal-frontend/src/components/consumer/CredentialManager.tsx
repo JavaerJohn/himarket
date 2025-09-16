@@ -17,7 +17,7 @@ import {
     InfoCircleOutlined,
     CopyOutlined,
     DeleteOutlined,
-    EditOutlined, LockOutlined
+    EditOutlined
 } from "@ant-design/icons";
 import api from "../../lib/api";
 import type {
