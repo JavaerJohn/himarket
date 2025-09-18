@@ -107,10 +107,10 @@ public class DeveloperController {
 //        developerService.unbindExternalIdentity(developerId, param.getProviderName(), param.getProviderSubject());
 //    }
 
-    @Operation(summary = "注销账号", description = "注销当前登录用户账号")
+    @Operation(summary = "删除Developer账号")
     @DeleteMapping("/{developerId}")
-    @DeveloperAuth
-    public void deleteAccount(@PathVariable("developerId") String developerId) {
-        developerService.deleteDeveloperAccount(developerId);
+    @AdminAuth
+    public void deleteDeveloper(@PathVariable("developerId") String developerId) {
+        developerService.deleteDeveloper(developerId);
     }
 }

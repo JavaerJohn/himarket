@@ -30,17 +30,18 @@ function ConsumersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  const [searchName, setSearchName] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // 输入框的值
+  const [searchName, setSearchName] = useState(""); // 实际搜索的值
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', description: '' });
 
-  const fetchConsumers = useCallback(async () => {
+  const fetchConsumers = useCallback(async (searchKeyword?: string, targetPage?: number) => {
     setLoading(true);
     try {
       const res = await getConsumers(
-        { name: searchName },
-        { page: page, size: pageSize }
+        { name: searchKeyword || '' },
+        { page: targetPage || page, size: pageSize }
       );
       setConsumers(res.data?.content || []);
       setTotal(res.data?.totalElements || 0);
@@ -49,11 +50,21 @@ function ConsumersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, searchName]);
+  }, [page, pageSize]); // 不依赖 searchName
 
+  // 初始加载和分页变化时调用
   useEffect(() => {
-    fetchConsumers();
-  }, [fetchConsumers]);
+    fetchConsumers(searchName);
+  }, [page, pageSize, fetchConsumers]); // 包含fetchConsumers以确保初始加载
+
+  // 处理搜索
+  const handleSearch = useCallback(async (searchValue?: string) => {
+    const actualSearchValue = searchValue !== undefined ? searchValue : searchInput;
+    setSearchName(actualSearchValue);
+    setPage(1);
+    // 直接调用API，不依赖状态变化
+    await fetchConsumers(actualSearchValue, 1);
+  }, [searchInput, fetchConsumers]);
 
   const handleDelete = (record: Consumer) => {
     Modal.confirm({
@@ -62,7 +73,7 @@ function ConsumersPage() {
         try {
           await deleteConsumer(record.consumerId);
           message.success("删除成功");
-          fetchConsumers();
+          await fetchConsumers(searchName); // 使用当前搜索条件重新加载
         } catch {
           // message.error("删除失败");
         }
@@ -81,7 +92,7 @@ function ConsumersPage() {
       message.success('新增成功');
       setAddModalOpen(false);
       setAddForm({ name: '', description: '' });
-      fetchConsumers();
+      await fetchConsumers(searchName); // 使用当前搜索条件重新加载
     } catch {
       // message.error('新增失败');
     } finally {
@@ -133,7 +144,7 @@ function ConsumersPage() {
   ];
 
   return (
-    <Layout loading={loading}>
+    <Layout>
       <div className="mb-8">
         <Title level={1} className="mb-2">
           {productId ? '产品订阅管理' : '消费者管理'}
@@ -154,9 +165,9 @@ function ConsumersPage() {
             placeholder={"搜索消费者..."}
             prefix={<SearchOutlined />}
             style={{ width: 300 }}
-            value={searchName}
-            onChange={e => setSearchName(e.target.value)}
-            onSearch={() => { setPage(1); fetchConsumers(); }}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            onSearch={handleSearch}
             enterButton
           />
         </div>

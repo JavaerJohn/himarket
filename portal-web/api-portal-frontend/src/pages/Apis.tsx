@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Card, Tag, Typography, Input, Avatar } from "antd";
+import { Card, Tag, Typography, Input, Avatar, Skeleton } from "antd";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import api from "../lib/api";
@@ -95,7 +95,7 @@ function APIsPage() {
   };
 
   return (
-    <Layout loading={loading}>
+    <Layout>
       {/* Header Section */}
       <div className="text-center mb-8">
         <Title level={1} className="mb-4">
@@ -127,8 +127,26 @@ function APIsPage() {
       </div>
 
       {/* APIs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {filteredApiProducts.map((product) => (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Card key={index} className="h-full rounded-lg shadow-lg">
+              <Skeleton loading active>
+                <div className="flex items-start space-x-4">
+                  <Skeleton.Avatar size={48} active />
+                  <div className="flex-1 min-w-0">
+                    <Skeleton.Input active size="small" style={{ width: '80%', marginBottom: 8 }} />
+                    <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 12 }} />
+                    <Skeleton.Input active size="small" style={{ width: '60%' }} />
+                  </div>
+                </div>
+              </Skeleton>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {filteredApiProducts.map((product) => (
           <Link key={product.key} to={`/apis/${product.key}`} className="block">
             <Card
               hoverable
@@ -181,6 +199,7 @@ function APIsPage() {
           </Link>
         ))}
       </div>
+      )}
 
       {/* Empty State */}
       {filteredApiProducts.length === 0 && (

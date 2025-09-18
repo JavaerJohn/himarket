@@ -10,6 +10,7 @@ import type { ApiResponse } from "../types";
 function ConsumerDetailPage() {
   const { consumerId } = useParams();
   const [loading, setLoading] = useState(true);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
   const [error, setError] = useState('');
   const [consumer, setConsumer] = useState<Consumer | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -30,6 +31,7 @@ function ConsumerDetailPage() {
 
   const fetchSubscriptions = useCallback(async (searchParams?: { productName: string; status: string }) => {
     if (!consumerId) return;
+    setSubscriptionsLoading(true);
     try {
       const params = {
         page: 1,
@@ -47,6 +49,8 @@ function ConsumerDetailPage() {
     } catch (error) {
       console.error('获取订阅列表失败:', error);
       setSubscriptions([]);
+    } finally {
+      setSubscriptionsLoading(false);
     }
   }, [consumerId]);
 
@@ -96,6 +100,7 @@ function ConsumerDetailPage() {
             consumerId={consumerId!}
             subscriptions={subscriptions}
             onSubscriptionsChange={fetchSubscriptions}
+            loading={subscriptionsLoading}
           />
         </Tabs.TabPane>
       </Tabs>

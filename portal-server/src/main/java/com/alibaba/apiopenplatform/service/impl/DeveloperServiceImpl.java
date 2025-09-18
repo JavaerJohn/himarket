@@ -179,10 +179,10 @@ public class DeveloperServiceImpl implements DeveloperService {
     }
 
     @Override
-    public void deleteDeveloperAccount(String userId) {
-        eventPublisher.publishEvent(new DeveloperDeletingEvent(userId));
-        externalRepository.deleteByDeveloper_DeveloperId(userId);
-        developerRepository.findByDeveloperId(userId).ifPresent(developerRepository::delete);
+    public void deleteDeveloper(String developerId) {
+        eventPublisher.publishEvent(new DeveloperDeletingEvent(developerId));
+        externalRepository.deleteByDeveloper_DeveloperId(developerId);
+        developerRepository.findByDeveloperId(developerId).ifPresent(developerRepository::delete);
     }
 
     @Override
@@ -242,7 +242,7 @@ public class DeveloperServiceImpl implements DeveloperService {
     public void handlePortalDeletion(PortalDeletingEvent event) {
         String portalId = event.getPortalId();
         List<Developer> developers = developerRepository.findByPortalId(portalId);
-        developers.forEach(developer -> deleteDeveloperAccount(developer.getDeveloperId()));
+        developers.forEach(developer -> deleteDeveloper(developer.getDeveloperId()));
     }
 
     private String generateToken(String developerId) {

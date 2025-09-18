@@ -101,7 +101,7 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
       const res = await apiProductApi.getApiProductRef(apiProduct.productId)
       setLinkedService(res.data || null)
     } catch (error) {
-      console.error('获取关联服务失败:', error)
+      console.error('获取关联API失败:', error)
       setLinkedService(null)
     }
   }
@@ -414,16 +414,16 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-2">关联服务</h1>
+          <h1 className="text-2xl font-bold mb-2">关联API</h1>
           <p className="text-gray-600">
             {apiProduct.type === 'REST_API' 
-              ? '关联REST API服务到此产品' 
-              : '关联MCP Server服务到此产品'
+              ? '关联REST API到此产品'
+              : '关联MCP Server到此产品'
             }
           </p>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          {linkedService ? '重新关联' : '关联服务'}
+          {linkedService ? '重新关联' : '关联API'}
         </Button>
       </div>
 
@@ -432,7 +432,7 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
       </Card>
 
       <Modal
-        title={linkedService ? '重新关联服务' : '关联新服务'}
+        title={linkedService ? '重新关联API' : '关联新API'}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}

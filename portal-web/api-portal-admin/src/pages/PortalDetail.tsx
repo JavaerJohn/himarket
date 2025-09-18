@@ -134,18 +134,19 @@ export default function PortalDetail() {
           title: "删除Portal",
           content: "确定要删除该Portal吗？",
           onOk: () => {
-            handleDeletePortal();
+            return handleDeletePortal();
           },
         });
       },
     },
   ]
   const handleDeletePortal = () => {
-    portalApi.deletePortal(searchParams.get('id') || '').then(() => {
+    return portalApi.deletePortal(searchParams.get('id') || '').then(() => {
       message.success('删除成功')
       navigate('/portals')
-    }).catch(() => {
-      // message.error(error.response?.data?.message || '删除失败')
+    }).catch((error) => {
+      message.error(error?.response?.data?.message || '删除失败，请稍后重试')
+      throw error; // 重新抛出错误，让Modal保持loading状态
     })
   }
 

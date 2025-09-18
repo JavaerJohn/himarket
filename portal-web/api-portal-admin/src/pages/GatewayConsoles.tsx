@@ -205,7 +205,7 @@ export default function Consoles() {
       </div>
 
       <Tabs
-        defaultActiveKey="APIG_API"
+        defaultActiveKey="HIGRESS"
         items={[
           {
             key: 'HIGRESS',

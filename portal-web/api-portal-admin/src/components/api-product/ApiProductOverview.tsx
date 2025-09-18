@@ -85,7 +85,7 @@ export function ApiProductOverview({ apiProduct }: ApiProductOverviewProps) {
             }}
           >
             <Statistic
-              title="关联服务"
+              title="关联API"
               value={getServiceName(linkedService)}
               prefix={<ApiOutlined />}
               valueStyle={{ color: '#1890ff' }}

@@ -101,7 +101,7 @@ export const portalApi = {
     })
   },
   deleteDeveloper: (developerId: string) => {
-    return api.delete(`/admins/${developerId}`)
+    return api.delete(`/developers/${developerId}`)
   },
   getConsumerList: (portalId: string, developerId: string, pagination?: { page: number; size: number }) => {
     return api.get(`/consumers`, {

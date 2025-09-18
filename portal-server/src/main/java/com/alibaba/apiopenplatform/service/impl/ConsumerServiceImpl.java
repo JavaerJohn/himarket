@@ -44,6 +44,7 @@ import com.alibaba.apiopenplatform.service.ConsumerService;
 import com.alibaba.apiopenplatform.service.GatewayService;
 import com.alibaba.apiopenplatform.service.PortalService;
 import com.alibaba.apiopenplatform.service.ProductService;
+import com.alibaba.apiopenplatform.support.common.Encryptor;
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.HmacConfig;
@@ -64,11 +65,10 @@ import javax.persistence.criteria.Predicate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import javax.persistence.criteria.Root;
+import javax.persistence.criteria.Subquery;
 import javax.transaction.Transactional;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import com.alibaba.apiopenplatform.support.enums.SubscriptionStatus;
@@ -291,7 +291,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         GatewayConfig gatewayConfig = gatewayService.getGatewayConfig(productRef.getGatewayId());
 
         // 取消网关上的Consumer授权
-        consumerRefRepository.findConsumerRef(consumerId, gatewayConfig.getGatewayType(), gatewayConfig)
+        Optional.ofNullable(matchConsumerRef(consumerId, gatewayConfig))
                 .ifPresent(consumerRef ->
                         gatewayService.revokeConsumerAuthorization(productRef.getGatewayId(), consumerRef.getGwConsumerId(), subscription.getConsumerAuthConfig())
                 );
@@ -419,9 +419,17 @@ public class ConsumerServiceImpl implements ConsumerService {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
             if (StrUtil.isNotBlank(param.getProductName())) {
-                // 关联Product表
-                Join<ProductSubscription, Product> productJoin = root.join("product");
-                predicates.add(cb.like(cb.lower(productJoin.get("name")), "%" + param.getProductName() + "%"));
+                // 使用子查询
+                Subquery<String> productSubquery = query.subquery(String.class);
+                Root<Product> productRoot = productSubquery.from(Product.class);
+
+                productSubquery.select(productRoot.get("productId"))
+                        .where(cb.like(
+                                cb.lower(productRoot.get("name")),
+                                "%" + param.getProductName().toLowerCase() + "%"
+                        ));
+
+                predicates.add(root.get("productId").in(productSubquery));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -468,11 +476,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         GatewayConfig gatewayConfig = gatewayService.getGatewayConfig(productRef.getGatewayId());
 
         // 是否在网关上有对应的Consumer
-        String gwConsumerId = consumerRefRepository.findConsumerRef(
-                        consumer.getConsumerId(),
-                        gatewayConfig.getGatewayType(),
-                        gatewayConfig
-                )
+        String gwConsumerId = Optional.ofNullable(matchConsumerRef(consumer.getConsumerId(), gatewayConfig))
                 .map(ConsumerRef::getGwConsumerId)
                 .orElseGet(() -> {
                     String newGwConsumerId = gatewayService.createConsumer(consumer, credential, gatewayConfig);
@@ -522,5 +526,20 @@ public class ConsumerServiceImpl implements ConsumerService {
                 log.error("Failed to unsubscribe product {} for consumer {}", productId, subscription.getConsumerId(), e);
             }
         });
+    }
+
+    private ConsumerRef matchConsumerRef(String consumerId, GatewayConfig gatewayConfig) {
+        List<ConsumerRef> consumeRefs = consumerRefRepository.findAllByConsumerIdAndGatewayType(consumerId, gatewayConfig.getGatewayType());
+        if (consumeRefs.isEmpty()) {
+            return null;
+        }
+
+        for (ConsumerRef ref : consumeRefs) {
+            // 网关配置相同
+            if (StrUtil.equals(JSONUtil.toJsonStr(ref.getGatewayConfig()), JSONUtil.toJsonStr(gatewayConfig))) {
+                return ref;
+            }
+        }
+        return null;
     }
 }

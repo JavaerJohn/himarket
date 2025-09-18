@@ -83,9 +83,9 @@ export default function ImportHigressModal({ visible, onCancel, onSuccess }: Imp
         <Form.Item 
           label="用户名" 
           name="username" 
-          rules={[{ required: true, message: '请输入用户名' }]}
+          // rules={[{ required: true, message: '请输入用户名' }]}
         >
-          <Input placeholder="例如：8080" />
+          <Input placeholder="请输入用户名" />
         </Form.Item>
 
         <Form.Item 

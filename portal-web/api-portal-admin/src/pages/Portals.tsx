@@ -44,12 +44,13 @@ const PortalCard = memo(
         key: "delete",
         label: "删除",
         danger: true,
-        onClick: () => {
+        onClick: (e) => {
+          e?.domEvent?.stopPropagation(); // 阻止事件冒泡
           Modal.confirm({
             title: "删除Portal",
             content: "确定要删除该Portal吗？",
             onOk: () => {
-              handleDeletePortal(portal.portalId);
+              return handleDeletePortal(portal.portalId);
             },
           });
         },
@@ -57,11 +58,14 @@ const PortalCard = memo(
     ];
 
     const handleDeletePortal = useCallback((portalId: string) => {
-      portalApi.deletePortal(portalId).then(() => {
+      return portalApi.deletePortal(portalId).then(() => {
         message.success("Portal删除成功");
-        fetchPortals()
+        fetchPortals();
+      }).catch((error) => {
+        message.error(error?.response?.data?.message || "删除失败，请稍后重试");
+        throw error;
       });
-    }, [portal.portalId, fetchPortals]);
+    }, [fetchPortals]);
 
     return (
       <Card

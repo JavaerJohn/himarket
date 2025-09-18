@@ -15,7 +15,7 @@ services:
     restart: always
 
   himarket-server:
-    image: himarket-server:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:1.0.0
     container_name: himarket-server
     environment:
       - DB_HOST=mysql
@@ -30,7 +30,7 @@ services:
     restart: always
 
   himarket-admin:
-    image: himarket-admin:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:1.0.0
     container_name: himarket-admin
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
@@ -41,7 +41,7 @@ services:
     restart: always
 
   himarket-frontend:
-    image: himarket-frontend:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:1.0.0
     container_name: himarket-frontend
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080

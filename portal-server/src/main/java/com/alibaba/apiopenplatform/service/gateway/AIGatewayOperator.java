@@ -34,6 +34,7 @@ import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.enums.APIGAPIType;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
+import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import com.aliyun.sdk.service.sls20201230.models.*;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Service
@@ -137,7 +141,7 @@ public class AIGatewayOperator extends APIGOperator {
 
     @Override
     public String getDashboard(Gateway gateway) {
-        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(),true);
+        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(), true);
         String ticket = null;
         try {
             CreateTicketResponse response = ticketClient.execute(c -> {
@@ -153,7 +157,7 @@ public class AIGatewayOperator extends APIGOperator {
             log.error("Error fetching API", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching createTicket API,Cause:" + e.getMessage());
         }
-        SLSClient client = new SLSClient(gateway.getApigConfig(),false);
+        SLSClient client = new SLSClient(gateway.getApigConfig(), false);
         String projectName = null;
         try {
             ListProjectResponse response = client.execute(c -> {
@@ -165,12 +169,12 @@ public class AIGatewayOperator extends APIGOperator {
                 }
             });
             projectName = response.getBody().getProjects().get(0).getProjectName();
-        }  catch (Exception e) {
+        } catch (Exception e) {
             log.error("Error fetching Project", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching Project,Cause:" + e.getMessage());
         }
         String region = gateway.getApigConfig().getRegion();
-        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/dashboard-1756276497392-966932?slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName,region, ticket);
+        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/dashboard-1756276497392-966932?slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, region, ticket);
         log.info("Dashboard URL: {}", dashboardUrl);
         return dashboardUrl;
     }
@@ -179,7 +183,7 @@ public class AIGatewayOperator extends APIGOperator {
         APIGClient client = getClient(gateway);
 
         try {
-            ListPluginAttachmentsResponse response = client.execute(c -> {
+            CompletableFuture<ListPluginAttachmentsResponse> f = client.execute(c -> {
                 ListPluginAttachmentsRequest request = ListPluginAttachmentsRequest.builder()
                         .gatewayId(gateway.getGatewayId())
                         .attachResourceId(routeId)
@@ -187,13 +191,11 @@ public class AIGatewayOperator extends APIGOperator {
                         .pageNumber(1)
                         .pageSize(100)
                         .build();
-                try {
-                    return c.listPluginAttachments(request).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
+
+                return c.listPluginAttachments(request);
             });
 
+            ListPluginAttachmentsResponse response = f.join();
             if (response.getStatusCode() != 200) {
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
@@ -238,17 +240,15 @@ public class AIGatewayOperator extends APIGOperator {
                             .environmentId(envId).build())
                     .build();
 
-            CreateConsumerAuthorizationRulesResponse response = client.execute(c -> {
-                CreateConsumerAuthorizationRulesRequest request = CreateConsumerAuthorizationRulesRequest.builder()
-                        .authorizationRules(Collections.singletonList(rule))
-                        .build();
-                try {
-                    return c.createConsumerAuthorizationRules(request).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            CompletableFuture<CreateConsumerAuthorizationRulesResponse> f = client.execute(c -> {
+                        CreateConsumerAuthorizationRulesRequest request = CreateConsumerAuthorizationRulesRequest.builder()
+                                .authorizationRules(Collections.singletonList(rule))
+                                .build();
 
+                        return c.createConsumerAuthorizationRules(request);
+                    }
+            );
+            CreateConsumerAuthorizationRulesResponse response = f.join();
             if (200 != response.getStatusCode()) {
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
@@ -260,8 +260,41 @@ public class AIGatewayOperator extends APIGOperator {
                     .apigAuthConfig(apigAuthConfig)
                     .build();
         } catch (Exception e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof PopClientException
+                    && "Conflict.ConsumerAuthorizationForbidden".equals(((PopClientException) cause).getErrCode())) {
+                return getConsumerAuthorization(gateway, consumerId, mcpRouteId);
+            }
             log.error("Error authorizing consumer {} to mcp server {} in AI gateway {}", consumerId, mcpRouteId, gateway.getGatewayId(), e);
             throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Failed to authorize consumer to mcp server in AI gateway: " + e.getMessage());
         }
+    }
+
+    public ConsumerAuthConfig getConsumerAuthorization(Gateway gateway, String consumerId, String resourceId) {
+        APIGClient client = getClient(gateway);
+
+        CompletableFuture<QueryConsumerAuthorizationRulesResponse> f = client.execute(c -> {
+            QueryConsumerAuthorizationRulesRequest request = QueryConsumerAuthorizationRulesRequest.builder()
+                    .consumerId(consumerId)
+                    .resourceId(resourceId)
+                    .resourceType("MCP")
+                    .build();
+
+            return c.queryConsumerAuthorizationRules(request);
+        });
+        QueryConsumerAuthorizationRulesResponse response = f.join();
+
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+        }
+
+        QueryConsumerAuthorizationRulesResponseBody.Items items = response.getBody().getData().getItems().get(0);
+        APIGAuthConfig apigAuthConfig = APIGAuthConfig.builder()
+                .authorizationRuleIds(Collections.singletonList(items.getConsumerAuthorizationRuleId()))
+                .build();
+
+        return ConsumerAuthConfig.builder()
+                .apigAuthConfig(apigAuthConfig)
+                .build();
     }
 }

@@ -31,7 +31,6 @@ import com.alibaba.apiopenplatform.support.enums.DeveloperStatus;
 import org.springframework.data.domain.Pageable;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.Optional;
 
 public interface DeveloperService {
 
@@ -85,11 +84,11 @@ public interface DeveloperService {
     DeveloperResult createExternalDeveloper(CreateExternalDeveloperParam param);
 
     /**
-     * 注销开发者账号（删除账号及所有外部身份）
+     * 删除开发者账号（删除账号及所有外部身份）
      *
-     * @param userId 当前开发者ID
+     * @param developerId
      */
-    void deleteDeveloperAccount(String userId);
+    void deleteDeveloper(String developerId);
 
     /**
      * 查询开发者详情

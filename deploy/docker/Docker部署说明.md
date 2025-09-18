@@ -31,8 +31,8 @@ services:
       - ./mysql/data:/var/lib/mysql
     restart: always
 
-  api-portal-server:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/api-portal-server:1.0.0
+  himarket-server:
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:1.0.0
     container_name: himarket-server
     environment:
       - DB_HOST=mysql
@@ -61,7 +61,7 @@ services:
     image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:1.0.0
     container_name: himarket-frontend
     environment:
-      - HIMARKET_SERVER=http://api-portal-server:8080
+      - HIMARKET_SERVER=http://himarket-server:8080
     ports:
       - "5173:8000"
     depends_on:
@@ -107,8 +107,8 @@ version: '3'
 services:
   # 移除 mysql 服务配置
 
-  api-portal-server:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/api-portal-server:1.0.0
+  himarket-server:
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:1.0.0
     container_name: himarket-server
     environment:
       - DB_HOST=your-mysql-host        # 替换为你的数据库地址
@@ -164,8 +164,8 @@ cd /path/to/your/project
 
 ```yaml
 services:
-  api-portal-server:
-    image: api-portal-server:1.0.0    # 替换为本地镜像
+  himarket-server:
+    image: himarket-server:1.0.0    # 替换为本地镜像
 
   himarket-admin:
     image: himarket-admin:1.0.0     # 替换为本地镜像

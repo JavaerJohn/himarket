@@ -38,9 +38,12 @@ public interface ConsumerRefRepository extends JpaRepository<ConsumerRef, Long>,
     List<ConsumerRef> findAllByConsumerId(String consumerId);
 
     @Query("SELECT c FROM ConsumerRef c WHERE c.consumerId = :consumerId AND c.gatewayType = :gatewayType AND c.gatewayConfig = :gatewayConfig")
+    @Deprecated
     Optional<ConsumerRef> findConsumerRef(@Param("consumerId") String consumerId,
                                           @Param("gatewayType") GatewayType gatewayType,
                                           @Param("gatewayConfig") GatewayConfig gatewayConfig);
 
     Optional<ConsumerRef> findByGwConsumerId(String gwConsumerId);
+
+    List<ConsumerRef> findAllByConsumerIdAndGatewayType(String consumerId, GatewayType gatewayType);
 }

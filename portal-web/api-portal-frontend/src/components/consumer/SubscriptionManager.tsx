@@ -23,12 +23,14 @@ interface SubscriptionManagerProps {
   consumerId: string;
   subscriptions: Subscription[];
   onSubscriptionsChange: (searchParams?: { productName: string; status: string }) => void;
+  loading?: boolean;
 }
 
-export function SubscriptionManager({ consumerId, subscriptions, onSubscriptionsChange }: SubscriptionManagerProps) {
+export function SubscriptionManager({ consumerId, subscriptions, onSubscriptionsChange, loading = false }: SubscriptionManagerProps) {
   const [productDrawerVisible, setProductDrawerVisible] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [productLoading, setProductLoading] = useState(false);
+  const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [subscriptionSearch, setSubscriptionSearch] = useState({ productName: '', status: '' as 'PENDING' | 'APPROVED' | '' });
 
@@ -54,6 +56,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
       return;
     }
 
+    setSubscribeLoading(true);
     try {
       await api.post(`/consumers/${consumerId}/subscriptions`, { productId: selectedProduct });
       message.success('订阅成功');
@@ -63,6 +66,8 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
     } catch (error) {
       console.error('订阅失败:', error);
       // message.error('订阅失败');
+    } finally {
+      setSubscribeLoading(false);
     }
   };
 
@@ -175,6 +180,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
           rowKey={(record) => record.productId}
           pagination={false}
           size="small"
+          loading={loading}
           locale={{ emptyText: '暂无订阅记录，请点击上方按钮进行订阅' }}
         />
       </Card>
@@ -186,16 +192,21 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
         width={600}
         open={productDrawerVisible}
         onClose={() => {
-          setProductDrawerVisible(false);
-          setSelectedProduct('');
+          if (!subscribeLoading) {
+            setProductDrawerVisible(false);
+            setSelectedProduct('');
+          }
         }}
         footer={
           <div className="flex justify-end space-x-2">
             <Button
               onClick={() => {
-                setProductDrawerVisible(false);
-                setSelectedProduct('');
+                if (!subscribeLoading) {
+                  setProductDrawerVisible(false);
+                  setSelectedProduct('');
+                }
               }}
+              disabled={subscribeLoading}
             >
               取消
             </Button>
@@ -203,6 +214,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
               type="primary"
               onClick={handleSubscribeProducts}
               disabled={!selectedProduct}
+              loading={subscribeLoading}
             >
               确定订阅
             </Button>
