@@ -4,24 +4,18 @@ import {
     DeleteOutlined,
     ExclamationCircleOutlined,
     EyeOutlined,
-    UnorderedListOutlined
+    UnorderedListOutlined,
+    CheckCircleFilled,
+    ClockCircleOutlined
 } from '@ant-design/icons'
 import {useEffect, useState} from 'react'
-import {Portal, Developer} from '@/types'
+import {Portal, Developer, Consumer} from '@/types'
 import {portalApi} from '@/lib/api'
 import {formatDateTime} from '@/lib/utils'
 import {SubscriptionListModal} from '@/components/subscription/SubscriptionListModal'
 
 interface PortalDevelopersProps {
     portal: Portal
-}
-
-interface Consumer {
-    consumerId: string
-    name: string
-    description: string
-    status: string
-    createdAt: string
 }
 
 export function PortalDevelopers({portal}: PortalDevelopersProps) {
@@ -176,7 +170,7 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
             dataIndex: 'username',
             key: 'username',
             fixed: 'left' as const,
-            width: 300,
+            width: 280,
             render: (username: string, record: Developer) => (
                 <div className="ml-2">
                     <div className="font-medium">{username}</div>
@@ -188,9 +182,21 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
             title: '状态',
             dataIndex: 'status',
             key: 'status',
+            width: 120,
             render: (status: string) => (
-                <Badge status={status === 'APPROVED' ? 'success' : 'default'}
-                       text={status === 'APPROVED' ? '可用' : '待审核'}/>
+                <div className="flex items-center">
+                    {status === 'APPROVED' ? (
+                        <>
+                            <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '10px'}} />
+                            <span className="text-xs text-gray-900">可用</span>
+                        </>
+                    ) : (
+                        <>
+                            <ClockCircleOutlined className="text-orange-500 mr-2" style={{fontSize: '10px'}} />
+                            <span className="text-xs text-gray-900">待审核</span>
+                        </>
+                    )}
+                </div>
             )
         },
 
@@ -198,6 +204,7 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
             title: '创建时间',
             dataIndex: 'createAt',
             key: 'createAt',
+            width: 160,
             render: (date: string) => formatDateTime(date)
         },
 
@@ -205,7 +212,7 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
             title: '操作',
             key: 'action',
             fixed: 'right' as const,
-            width: 300,
+            width: 250,
             render: (_: any, record: Developer) => (
                 <Space size="middle">
                     <Button onClick={() => handleViewConsumers(record)} type="link" icon={<EyeOutlined/>}>

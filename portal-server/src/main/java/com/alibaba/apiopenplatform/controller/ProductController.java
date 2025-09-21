@@ -56,7 +56,13 @@ public class ProductController {
     @GetMapping
     public PageResult<ProductResult> listProducts(QueryProductParam param,
                                                   Pageable pageable) {
-        return productService.listProducts(param, pageable);
+        log.info("zhaoh-test-listProducts-start");
+        long startTime = System.currentTimeMillis();
+        PageResult<ProductResult> productResultPageResult = productService.listProducts(param, pageable);
+        long endTime = System.currentTimeMillis();
+        log.info("zhaoh-test-listProducts-end, cost: {} ms", (endTime - startTime));
+
+        return productResultPageResult;
     }
 
     @Operation(summary = "获取API产品详情")

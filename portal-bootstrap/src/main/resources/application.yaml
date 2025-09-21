@@ -12,12 +12,26 @@ spring:
       hibernate:
         format_sql: true
 
+#db:
+#   host: YourDBHost
+#   port: 3306
+#   name: YourDBName
+#   username: YourDBUser
+#   password: YourDBPassword
 db:
-   host: YourDBHost
+   host: rm-uf6pc9n1jzi2478l4eo.mysql.rds.aliyuncs.com
    port: 3306
-   name: YourDBName
-   username: YourDBUser
-   password: YourDBPassword
+   name: portal_db
+   username: portal_test
+   password: portal-Go
+
+
+#  -Ddb.host=rm-uf6pc9n1jzi2478l4eo.mysql.rds.aliyuncs.com \
+#  -Ddb.port=3306 \
+#  -Ddb.name=portal_db \
+#  -Ddb.username=portal_test \
+#  -Ddb.password=portal-Go \
+
 
 # Encryptor
 encryption:

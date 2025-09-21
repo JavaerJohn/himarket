@@ -126,4 +126,10 @@ export function handleOidcCallback(code: string, state: string): Promise<AuthRes
   });
 }
 
+// Developer相关接口
+// 开发者登出 - 对接 /developers/logout
+export function developerLogout(): Promise<void> {
+  return api.post('/developers/logout');
+}
+
 export default api 

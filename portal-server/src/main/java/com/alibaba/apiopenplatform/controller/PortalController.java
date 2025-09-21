@@ -95,4 +95,11 @@ public class PortalController {
                                                            Pageable pageable) {
         return portalService.listSubscriptions(portalId, param, pageable);
     }
+
+    @Operation(summary = "获取门户Dashboard监控面板URL")
+    @GetMapping("/{portalId}/dashboard")
+    public String getDashboard(@PathVariable String portalId,
+                               @RequestParam(required = false, defaultValue = "Portal") String type) {
+        return portalService.getDashboard(portalId);
+    }
 }

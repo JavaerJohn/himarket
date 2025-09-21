@@ -23,6 +23,7 @@ import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
 import com.alibaba.apiopenplatform.entity.Product;
 import com.alibaba.apiopenplatform.support.enums.ProductStatus;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
+import com.alibaba.apiopenplatform.support.product.ProductIcon;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -44,7 +45,7 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
 
     private String document;
 
-    private String icon;
+    private ProductIcon icon;
 
     private String category;
 

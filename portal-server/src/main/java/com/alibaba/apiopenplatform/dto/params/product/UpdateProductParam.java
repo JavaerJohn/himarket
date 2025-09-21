@@ -19,14 +19,14 @@
 
 package com.alibaba.apiopenplatform.dto.params.product;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.Product;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
 import com.alibaba.apiopenplatform.support.product.ProductIcon;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
-import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.AssertTrue;
 
 @Data
 public class UpdateProductParam implements InputConverter<Product> {
@@ -46,4 +46,12 @@ public class UpdateProductParam implements InputConverter<Product> {
     private String category;
 
     private Boolean autoApprove;
+
+    @AssertTrue(message = "Icon大小不能超过16KB")
+    public boolean checkIcon() {
+        if (icon == null || StrUtil.isBlank(icon.getValue())) {
+            return true;
+        }
+        return icon.getValue().length() < 16 * 1024;
+    }
 }

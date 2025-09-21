@@ -105,5 +105,5 @@ public interface GatewayService {
      *
      * @return 仪表板URL
      */
-    String getDashboard(String gatewayId);
+    String getDashboard(String gatewayId,String type);
 }

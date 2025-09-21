@@ -6,6 +6,12 @@ export interface ApiProductConfig {
   }
 }
 
+// 产品图标类型
+export interface ProductIcon {
+  type: 'URL' | 'BASE64';
+  value: string;
+}
+
 export interface ApiProductMcpConfig {
   mcpServerName: string;
   tools: string;
@@ -21,8 +27,45 @@ export interface ApiProductMcpConfig {
       domain: string;
       protocol: string;
     }[];
-    rawConfig: string;
+    rawConfig?: unknown;
   }
+}
+
+// API 配置相关类型
+export interface RestAPIItem {
+  apiId: string;
+  apiName: string;
+}
+
+export interface HigressMCPItem {
+  mcpServerName: string;
+  fromGatewayType: 'HIGRESS';
+}
+
+export interface NacosMCPItem {
+  mcpServerName: string;
+  fromGatewayType: 'NACOS';
+  namespaceId: string;
+}
+
+export interface APIGAIMCPItem {
+  mcpServerName: string;
+  fromGatewayType: 'ADP_AI_GATEWAY';
+  mcpRouteId: string;
+}
+
+export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem;
+
+// 关联服务配置
+export interface LinkedService {
+  productId: string;
+  gatewayId?: string;
+  nacosId?: string;
+  sourceType: 'GATEWAY' | 'NACOS';
+  apigRefConfig?: RestAPIItem | APIGAIMCPItem;
+  higressRefConfig?: HigressMCPItem;
+  nacosRefConfig?: NacosMCPItem;
+  adpAIGatewayRefConfig?: APIGAIMCPItem;
 }
 
 export interface ApiProduct {
@@ -38,5 +81,5 @@ export interface ApiProduct {
   apiConfig?: ApiProductConfig;
   mcpConfig?: ApiProductMcpConfig;
   document?: string;
-  icon?: string;
+  icon?: ProductIcon | null;
 } 

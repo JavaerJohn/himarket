@@ -1,76 +1,22 @@
-import { Card, Button, Modal, Form, Select, message } from 'antd'
-import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } from 'antd'
+import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import type { ApiProduct } from '@/types/api-product'
+import type { ApiProduct, LinkedService, RestAPIItem, HigressMCPItem, NacosMCPItem, APIGAIMCPItem, ApiItem } from '@/types/api-product'
+import type { Gateway, NacosInstance } from '@/types/gateway'
 import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
-import { getServiceName } from '@/lib/utils'
 import { getGatewayTypeLabel } from '@/lib/constant'
+import * as yaml from 'js-yaml'
+import { SwaggerUIWrapper } from './SwaggerUIWrapper'
 
 interface ApiProductLinkApiProps {
   apiProduct: ApiProduct
+  linkedService: LinkedService | null
+  onLinkedServiceUpdate: (linkedService: LinkedService | null) => void
   handleRefresh: () => void
 }
 
-interface RestAPIItem {
-  apiId: string
-  apiName: string
-}
-
-interface HigressMCPItem {
-  mcpServerName: string
-  fromGatewayType: 'HIGRESS'
-}
-
-interface NacosMCPItem {
-  mcpServerName: string
-  fromGatewayType: 'NACOS'
-  namespaceId: string
-}
-
-interface APIGAIMCPItem {
-  mcpServerName: string
-  fromGatewayType: 'ADP_AI_GATEWAY'
-  mcpRouteId: string
-}
-
-type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem;
-
-interface LinkedService {
-  productId: string
-  gatewayId?: string
-  nacosId?: string
-  sourceType: 'GATEWAY' | 'NACOS'
-  apigRefConfig?: RestAPIItem | APIGAIMCPItem
-  higressRefConfig?: HigressMCPItem
-  nacosRefConfig?: NacosMCPItem
-  adpAIGatewayRefConfig?: APIGAIMCPItem
-}
-
-interface Gateway {
-  gatewayId: string
-  gatewayName: string
-  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY'
-  createAt: string
-  apigConfig?: {
-    region: string
-  }
-  higressConfig?: {
-    host: string
-    port: number
-  }
-}
-
-interface NacosInstance {
-  nacosId: string
-  nacosName: string
-  serverUrl: string
-  username: string
-  description: string
-  adminId: string
-}
-
-export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkApiProps) {
-  const [linkedService, setLinkedService] = useState<LinkedService | null>(null)
+export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUpdate, handleRefresh }: ApiProductLinkApiProps) {
+  // 移除了内部的 linkedService 状态，现在从 props 接收
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [form] = Form.useForm()
   const [gateways, setGateways] = useState<Gateway[]>([])
@@ -84,25 +30,164 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
   const [apiList, setApiList] = useState<ApiItem[] | NacosMCPItem[]>([])
   const [apiLoading, setApiLoading] = useState(false)
   const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY')
+  const [parsedTools, setParsedTools] = useState<Array<{
+    name: string;
+    description: string;
+    args?: Array<{
+      name: string;
+      description: string;
+      type: string;
+      required: boolean;
+      position: string;
+      default?: string;
+      enum?: string[];
+    }>;
+  }>>([])
+  const [httpJson, setHttpJson] = useState('')
+  const [sseJson, setSseJson] = useState('')
+  const [localJson, setLocalJson] = useState('')
 
   useEffect(() => {    
     fetchGateways()
     fetchNacosInstances()
   }, [])
 
+  // 解析MCP tools配置
   useEffect(() => {
-    if (apiProduct.productId) {
-      fetchLinkedService()
+    if (apiProduct.type === 'MCP_SERVER' && apiProduct.mcpConfig?.tools) {
+      const parsedConfig = parseYamlConfig(apiProduct.mcpConfig.tools)
+      if (parsedConfig && parsedConfig.tools && Array.isArray(parsedConfig.tools)) {
+        setParsedTools(parsedConfig.tools)
+      } else {
+        // 如果tools字段存在但是空数组，也设置为空数组
+        setParsedTools([])
+      }
+    } else {
+      setParsedTools([])
     }
-  }, [apiProduct.productId])
+  }, [apiProduct])
 
-  const fetchLinkedService = async () => {
+  // 生成连接配置
+  useEffect(() => {
+    if (apiProduct.type === 'MCP_SERVER' && apiProduct.mcpConfig) {
+      generateConnectionConfig(
+        apiProduct.mcpConfig.mcpServerConfig.domains,
+        apiProduct.mcpConfig.mcpServerConfig.path,
+        apiProduct.mcpConfig.mcpServerName,
+        apiProduct.mcpConfig.mcpServerConfig.rawConfig
+      )
+    }
+  }, [apiProduct])
+
+  // 解析YAML配置的函数
+  const parseYamlConfig = (yamlString: string): {
+    tools?: Array<{
+      name: string;
+      description: string;
+      args?: Array<{
+        name: string;
+        description: string;
+        type: string;
+        required: boolean;
+        position: string;
+        default?: string;
+        enum?: string[];
+      }>;
+    }>;
+  } | null => {
     try {
-      const res = await apiProductApi.getApiProductRef(apiProduct.productId)
-      setLinkedService(res.data || null)
+      const parsed = yaml.load(yamlString) as {
+        tools?: Array<{
+          name: string;
+          description: string;
+          args?: Array<{
+            name: string;
+            description: string;
+            type: string;
+            required: boolean;
+            position: string;
+            default?: string;
+            enum?: string[];
+          }>;
+        }>;
+      };
+      return parsed;
     } catch (error) {
-      console.error('获取关联API失败:', error)
-      setLinkedService(null)
+      console.error('YAML解析失败:', error)
+      return null
+    }
+  }
+
+  // 生成连接配置
+  const generateConnectionConfig = (
+    domains: Array<{ domain: string; protocol: string }> | null | undefined,
+    path: string | null | undefined,
+    serverName: string,
+    localConfig?: unknown
+  ) => {
+    // 互斥：优先判断本地模式
+    if (localConfig) {
+      const localConfigJson = JSON.stringify(localConfig, null, 2);
+      setLocalJson(localConfigJson);
+      setHttpJson("");
+      setSseJson("");
+      return;
+    }
+
+    // HTTP/SSE 模式
+    if (domains && domains.length > 0 && path) {
+      const domain = domains[0]
+      const fullUrl = `${domain.protocol}://${domain.domain}${path || '/'}`
+
+      // SSE 配置
+      const sseConfig = {
+        mcpServers: {
+          [serverName]: {
+            type: "sse",
+            url: `${fullUrl}sse`
+          }
+        }
+      }
+
+      // HTTP 配置  
+      const httpConfig = {
+        mcpServers: {
+          [serverName]: {
+            url: fullUrl
+          }
+        }
+      }
+
+      setSseJson(JSON.stringify(sseConfig, null, 2))
+      setHttpJson(JSON.stringify(httpConfig, null, 2))
+      setLocalJson("");
+      return;
+    }
+
+    // 无有效配置
+    setHttpJson("");
+    setSseJson("");
+    setLocalJson("");
+  }
+
+  const handleCopy = async (text: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // 非安全上下文降级处理
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      message.success("已复制到剪贴板");
+    } catch {
+      message.error("复制失败，请手动复制");
     }
   }
 
@@ -258,104 +343,6 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
     }
   }
 
-  const renderServiceDetails = () => {
-    if (!linkedService) {
-      return (
-        <div className="text-center py-8 text-gray-500">
-          <p>暂未关联任何服务</p>
-        </div>
-      )
-    }
-
-    const getServiceType = () => {
-
-      if (linkedService.sourceType === 'NACOS') {
-        return 'MCP Server (Nacos)'
-      }
-      
-      if (linkedService.apigRefConfig) {
-        if ('apiName' in linkedService.apigRefConfig && linkedService.apigRefConfig.apiName) {
-          return 'REST API'
-        }
-        return 'MCP Server (APIG_AI)'
-      }
-      if (linkedService.higressRefConfig) {
-        return 'MCP Server (HIGRESS)'
-      }
-      if (linkedService.adpAIGatewayRefConfig) {
-        return 'MCP Server (专有云AI网关)'
-      }
-      return '未知类型'
-    }
-
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="text-lg font-medium">名称：{getServiceName(linkedService)}</h3>
-            <p className="text-sm text-gray-500">类型：{getServiceType()}</p>
-          </div>
-          <Button 
-            type="primary" 
-            danger 
-            icon={<DeleteOutlined />}
-            onClick={handleDelete}
-          >
-            解除关联
-          </Button>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="font-medium">来源类型:</span>
-            <span className="ml-2">网关</span>
-          </div>
-          <div>
-            <span className="font-medium">{linkedService.sourceType === 'GATEWAY' ? '网关ID:' : 'Nacos实例ID:'}</span>
-            <span className="ml-2">{linkedService.gatewayId || linkedService.nacosId}</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const handleAdd = () => {
-    if (linkedService) {
-      Modal.confirm({
-        title: '重新关联',
-        content: '重新关联将删除现有的关联关系，确定继续吗？',
-        onOk: () => {
-          apiProductApi.deleteApiProductRef(apiProduct.productId).then(() => {
-            setLinkedService(null)
-            setIsModalVisible(true)
-          }).catch((err: any) => {
-            // message.error('删除现有关联失败')
-          })
-        }
-      })
-    } else {
-      setIsModalVisible(true)
-    }
-  }
-
-  const handleDelete = () => {
-    Modal.confirm({
-      title: '确认解除关联',
-      icon: <ExclamationCircleOutlined />,
-      content: '确定要解除服务关联吗？此操作不可恢复。',
-      okText: '确认解除',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: () => {
-        apiProductApi.deleteApiProductRef(apiProduct.productId).then((res: any) => {
-          message.success('解除关联成功')
-          fetchLinkedService()
-        }).catch((err: any) => {
-          // message.error('解除关联失败')
-        })
-      }
-    })
-  }
 
   const handleModalOk = () => {
     form.validateFields().then((values) => {
@@ -386,17 +373,29 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
         } : undefined,
         adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
       }
-      apiProductApi.createApiProductRef(apiProduct.productId, newService).then((res: any) => {
+      apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
         message.success('关联成功')
         setIsModalVisible(false)
-        fetchLinkedService()
+        
+        // 重新获取关联信息并更新
+        try {
+          const res = await apiProductApi.getApiProductRef(apiProduct.productId)
+          onLinkedServiceUpdate(res.data || null)
+        } catch (error) {
+          console.error('获取关联API失败:', error)
+          onLinkedServiceUpdate(null)
+        }
+        
+        // 重新获取产品详情（特别重要，因为关联API后apiProduct.apiConfig可能会更新）
+        handleRefresh()
+        
         form.resetFields()
         setSelectedGateway(null)
         setSelectedNacos(null)
         setApiList([])
         setSourceType('GATEWAY')
-      }).catch((err: any) => {
-        // message.error('关联失败')
+      }).catch(() => {
+        message.error('关联失败')
       })
     })
   }
@@ -410,26 +409,318 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
     setSourceType('GATEWAY')
   }
 
+
+  const handleDelete = () => {
+    if (!linkedService) return
+
+    Modal.confirm({
+      title: '确认解除关联',
+      content: '确定要解除与当前API的关联吗？',
+      icon: <ExclamationCircleOutlined />,
+      onOk() {
+        return apiProductApi.deleteApiProductRef(apiProduct.productId).then(() => {
+          message.success('解除关联成功')
+          onLinkedServiceUpdate(null)
+          // 重新获取产品详情（解除关联后apiProduct.apiConfig可能会更新）
+          handleRefresh()
+        }).catch(() => {
+          message.error('解除关联失败')
+        })
+      }
+    })
+  }
+
+  const getServiceInfo = () => {
+    if (!linkedService) return null
+
+    let apiName = ''
+    let apiType = ''
+    let sourceInfo = ''
+    let gatewayInfo = ''
+
+    // 首先根据 Product 的 type 确定基本类型
+    if (apiProduct.type === 'REST_API') {
+      // REST API 类型产品 - 只能关联 API 网关上的 REST API
+      if (linkedService.sourceType === 'GATEWAY' && linkedService.apigRefConfig && 'apiName' in linkedService.apigRefConfig) {
+        apiName = linkedService.apigRefConfig.apiName || '未命名'
+        apiType = 'REST API'
+        sourceInfo = 'API网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
+      }
+    } else if (apiProduct.type === 'MCP_SERVER') {
+      // MCP Server 类型产品 - 可以关联多种平台上的 MCP Server
+      apiType = 'MCP Server'
+      
+      if (linkedService.sourceType === 'GATEWAY' && linkedService.apigRefConfig && 'mcpServerName' in linkedService.apigRefConfig) {
+        // AI网关上的MCP Server
+        apiName = linkedService.apigRefConfig.mcpServerName || '未命名'
+        sourceInfo = 'AI网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig) {
+        // Higress网关上的MCP Server
+        apiName = linkedService.higressRefConfig.mcpServerName || '未命名'
+        sourceInfo = 'Higress网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.adpAIGatewayRefConfig) {
+        // 专有云AI网关上的MCP Server
+        apiName = linkedService.adpAIGatewayRefConfig.mcpServerName || '未命名'
+        sourceInfo = '专有云AI网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'NACOS' && linkedService.nacosRefConfig) {
+        // Nacos上的MCP Server
+        apiName = linkedService.nacosRefConfig.mcpServerName || '未命名'
+        sourceInfo = 'Nacos服务发现'
+        gatewayInfo = linkedService.nacosId || '未知'
+      }
+    }
+
+    return {
+      apiName,
+      apiType,
+      sourceInfo,
+      gatewayInfo
+    }
+  }
+
+  const renderLinkInfo = () => {
+    const serviceInfo = getServiceInfo()
+    
+    // 没有关联任何API
+    if (!linkedService || !serviceInfo) {
+      return (
+        <Card className="mb-6">
+          <div className="text-center py-8">
+            <div className="text-gray-500 mb-4">暂未关联任何API</div>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+              关联API
+            </Button>
+          </div>
+        </Card>
+      )
+    }
+
+    return (
+      <Card 
+        className="mb-6"
+        title="关联详情"
+        extra={
+          <Button type="primary" danger icon={<DeleteOutlined />} onClick={handleDelete}>
+            解除关联
+          </Button>
+        }
+      >
+        <div>
+          {/* 第一行：名称 + 类型 */}
+          <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+            <span className="text-xs text-gray-600">名称:</span>
+            <span className="col-span-2 text-xs text-gray-900">{serviceInfo.apiName || '未命名'}</span>
+            <span className="text-xs text-gray-600">类型:</span>
+            <span className="col-span-2 text-xs text-gray-900">{serviceInfo.apiType}</span>
+          </div>
+          
+          {/* 第二行：来源 + ID */}
+          <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+            <span className="text-xs text-gray-600">来源:</span>
+            <span className="col-span-2 text-xs text-gray-900">{serviceInfo.sourceInfo}</span>
+            <span className="text-xs text-gray-600">
+              {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' : '网关ID:'}
+            </span>
+            <span className="col-span-2 text-xs text-gray-700">{serviceInfo.gatewayInfo}</span>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
+  const renderApiConfig = () => {
+    const isMcp = apiProduct.type === 'MCP_SERVER'
+    const isOpenApi = apiProduct.type === 'REST_API'
+
+    // MCP Server类型：无论是否有linkedService都显示tools和连接点配置  
+    if (isMcp && apiProduct.mcpConfig) {
+      return (
+        <Card title="配置详情">
+          <Row gutter={24}>
+            {/* 左侧：工具列表 */}
+            <Col span={15}>
+              <Card>
+                <Tabs
+                  defaultActiveKey="tools"
+                  items={[
+                    {
+                      key: "tools",
+                      label: `Tools (${parsedTools.length})`,
+                      children: parsedTools.length > 0 ? (
+                        <div className="border border-gray-200 rounded-lg bg-gray-50">
+                          {parsedTools.map((tool, idx) => (
+                            <div key={idx} className={idx < parsedTools.length - 1 ? "border-b border-gray-200" : ""}>
+                              <Collapse
+                                ghost
+                                expandIconPosition="end"
+                                items={[{
+                                  key: idx.toString(),
+                                  label: tool.name,
+                                  children: (
+                                    <div className="px-4 pb-2">
+                                      <div className="text-gray-600 mb-4">{tool.description}</div>
+                                      
+                                      {tool.args && tool.args.length > 0 && (
+                                        <div>
+                                          <p className="font-medium text-gray-700 mb-3">输入参数:</p>
+                                          {tool.args.map((arg, argIdx) => (
+                                            <div key={argIdx} className="mb-3">
+                                              <div className="flex items-center mb-2">
+                                                <span className="font-medium text-gray-800 mr-2">{arg.name}</span>
+                                                <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded mr-2">
+                                                  {arg.type}
+                                                </span>
+                                                {arg.required && (
+                                                  <span className="text-red-500 text-xs mr-2">*</span>
+                                                )}
+                                                {arg.description && (
+                                                  <span className="text-xs text-gray-500">
+                                                    {arg.description}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <input
+                                                type="text"
+                                                placeholder={arg.description || `请输入${arg.name}`}
+                                                className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                                                defaultValue={arg.default !== undefined ? JSON.stringify(arg.default) : ''}
+                                              />
+                                              {arg.enum && (
+                                                <div className="text-xs text-gray-500">
+                                                  可选值: {arg.enum.map(value => <code key={value} className="mr-1">{value}</code>)}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                }]}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-gray-500 text-center py-8">
+                          No tools available
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
+              </Card>
+            </Col>
+
+            {/* 右侧：连接点配置 */}
+            <Col span={9}>
+              <Card>
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+                  <Tabs
+                    size="small" 
+                    defaultActiveKey={localJson ? "local" : (httpJson ? "http" : "sse")}
+                    items={
+                      localJson
+                        ? [
+                            {
+                              key: "local",
+                              label: "Stdio",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(localJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre-wrap">{localJson}</pre>
+                                  </div>
+                                </div>
+                              ),
+                            },
+                          ]
+                        : [
+                            {
+                              key: "sse",
+                              label: "SSE",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(sseJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre-wrap">{sseJson}</pre>
+                                  </div>
+                                </div>
+                              ),
+                            },
+                            {
+                              key: "http",
+                              label: "Streaming HTTP",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(httpJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre-wrap">{httpJson}</pre>
+                                  </div>
+                                </div>
+                              ),
+                            },
+                          ]
+                    }
+                  />
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        </Card>
+      )
+    }
+
+    // REST API类型：需要linkedService才显示
+    if (!linkedService) {
+      return null
+    }
+
+    return (
+      <Card title="配置详情">
+
+        {isOpenApi && apiProduct.apiConfig && apiProduct.apiConfig.spec && (
+          <div>
+            <h4 className="text-base font-medium mb-4">REST API接口文档</h4>
+            <SwaggerUIWrapper apiSpec={apiProduct.apiConfig.spec} />
+          </div>
+        )}
+      </Card>
+    )
+  }
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">关联API</h1>
-          <p className="text-gray-600">
-            {apiProduct.type === 'REST_API' 
-              ? '关联REST API到此产品'
-              : '关联MCP Server到此产品'
-            }
-          </p>
-        </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          {linkedService ? '重新关联' : '关联API'}
-        </Button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2">API关联</h1>
+        <p className="text-gray-600">管理Product关联的API</p>
       </div>
 
-      <Card>
-        {renderServiceDetails()}
-      </Card>
+      {renderLinkInfo()}
+      {renderApiConfig()}
 
       <Modal
         title={linkedService ? '重新关联API' : '关联新API'}

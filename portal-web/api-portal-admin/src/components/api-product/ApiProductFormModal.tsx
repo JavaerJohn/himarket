@@ -4,13 +4,14 @@ import {
   Form,
   Input,
   Select,
-  Upload,
   Image,
   message,
   UploadFile,
-  UploadProps,
+  Switch,
+  Radio,
+  Space,
 } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { CameraOutlined } from "@ant-design/icons";
 import { apiProductApi } from "@/lib/api";
 import type { ApiProduct } from "@/types/api-product";
 
@@ -34,42 +35,70 @@ export default function ApiProductFormModal({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [iconMode, setIconMode] = useState<'BASE64' | 'URL'>('URL');
   const isEditMode = !!productId;
 
   // 初始化时加载已有数据
   useEffect(() => {
     if (visible && isEditMode && initialData && initialData.name) {
       setTimeout(() => {
-        // 1. 先设置所有字段（name、description、type）
+        // 1. 先设置所有字段
         form.setFieldsValue({
           name: initialData.name,
           description: initialData.description,
           type: initialData.type,
+          autoApprove: initialData.autoApprove,
         });
       }, 100);
 
-      // 2. 再单独处理 icon 字段
+      // 2. 处理 icon 字段
       if (initialData.icon) {
-        const startIndex = initialData.icon.indexOf("value=") + 6;
-        const endIndex = initialData.icon.length - 1;
-        const base64Data = initialData.icon
-          .substring(startIndex, endIndex)
-          .trim();
-
-        setFileList([
-          {
-            uid: "-1",
-            name: "头像.png",
-            status: "done",
-            url: base64Data,
-          },
-        ]);
-        form.setFieldsValue({ icon: base64Data }); // ✅ 仅更新 icon 字段
+        if (typeof initialData.icon === 'object' && initialData.icon.type && initialData.icon.value) {
+          // 新格式：{ type: 'BASE64' | 'URL', value: string }
+          const iconType = initialData.icon.type as 'BASE64' | 'URL';
+          const iconValue = initialData.icon.value;
+          
+          setIconMode(iconType);
+          
+          if (iconType === 'BASE64') {
+            setFileList([
+              {
+                uid: "-1",
+                name: "头像.png",
+                status: "done",
+                url: iconValue,
+              },
+            ]);
+            form.setFieldsValue({ icon: iconValue });
+          } else {
+            form.setFieldsValue({ iconUrl: iconValue });
+          }
+        } else {
+          // 兼容旧格式（字符串格式）
+          const iconStr = initialData.icon as unknown as string;
+          if (iconStr && typeof iconStr === 'string' && iconStr.includes("value=")) {
+            const startIndex = iconStr.indexOf("value=") + 6;
+            const endIndex = iconStr.length - 1;
+            const base64Data = iconStr.substring(startIndex, endIndex).trim();
+            
+            setIconMode('BASE64');
+            setFileList([
+              {
+                uid: "-1",
+                name: "头像.png",
+                status: "done",
+                url: base64Data,
+              },
+            ]);
+            form.setFieldsValue({ icon: base64Data });
+          }
+        }
       }
     } else if (visible && !isEditMode) {
       // 新建模式下清空表单
       form.resetFields();
       setFileList([]);
+      setIconMode('URL');
     }
   }, [visible, isEditMode, initialData, form]);
 
@@ -82,43 +111,38 @@ export default function ApiProductFormModal({
       reader.onerror = (error) => reject(error);
     });
 
-  // 预览图片
-  const handlePreview = async (file: UploadFile) => {
-    if (!file.url && !file.preview) {
-      file.preview = await getBase64(file.originFileObj as File);
-    }
-    setPreviewImage(file.url || (file.preview as string));
-    setPreviewOpen(true);
-  };
-
-  // 上传变化时更新 fileList 和表单字段
-  const handleChange: UploadProps["onChange"] = ({ fileList }) => {
-    if (fileList.length > 0) {
-      const newFileList = [fileList[fileList.length - 1]]; // 仅保留最新文件
-      setFileList(newFileList);
-      if (newFileList[0].originFileObj) {
-        getBase64(newFileList[0].originFileObj as File).then((base64) => {
-          form.setFieldsValue({ icon: base64 }); // ✅ 设置到表单字段
-        });
-      }
-    } else {
-      setFileList([]);
-      form.setFieldsValue({ icon: null }); // ✅ 清空表单字段
-    }
-  };
 
   const uploadButton = (
-    <div>
-      <PlusOutlined />
-      <div style={{ marginTop: 8 }}>上传</div>
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      color: '#999'
+    }}>
+      <CameraOutlined style={{ fontSize: '16px', marginBottom: '6px' }} />
+      <span style={{ fontSize: '12px', color: '#999' }}>上传图片</span>
     </div>
   );
+
+  // 处理Icon模式切换
+  const handleIconModeChange = (mode: 'BASE64' | 'URL') => {
+    setIconMode(mode);
+    // 清空相关字段
+    if (mode === 'URL') {
+      form.setFieldsValue({ icon: undefined });
+      setFileList([]);
+    } else {
+      form.setFieldsValue({ iconUrl: undefined });
+    }
+  };
 
   const resetForm = () => {
     form.resetFields();
     setFileList([]);
     setPreviewImage("");
     setPreviewOpen(false);
+    setIconMode('URL');
   };
 
   const handleCancel = () => {
@@ -131,29 +155,45 @@ export default function ApiProductFormModal({
       const values = await form.validateFields();
       setLoading(true);
 
-      const { icon, ...otherValues } = values;
+      const { icon, iconUrl, ...otherValues } = values;
 
       if (isEditMode) {
         let params = { ...otherValues };
-        if (!icon) {
-          // 如果没有上传新头像，保持原有头像不变
-          delete params.icon;
-        } else {
+        
+        // 处理icon字段
+        if (iconMode === 'BASE64' && icon) {
           params.icon = {
             type: "BASE64",
             value: icon,
           };
+        } else if (iconMode === 'URL' && iconUrl) {
+          params.icon = {
+            type: "URL",
+            value: iconUrl,
+          };
+        } else if (!icon && !iconUrl) {
+          // 如果两种模式都没有提供icon，保持原有icon不变
+          delete params.icon;
         }
+        
         await apiProductApi.updateApiProduct(productId!, params);
         message.success("API Product 更新成功");
       } else {
         let params = { ...otherValues };
-        if (icon) {
+        
+        // 处理icon字段
+        if (iconMode === 'BASE64' && icon) {
           params.icon = {
             type: "BASE64",
             value: icon,
           };
+        } else if (iconMode === 'URL' && iconUrl) {
+          params.icon = {
+            type: "URL",
+            value: iconUrl,
+          };
         }
+        
         await apiProductApi.createApiProduct(params);
         message.success("API Product 创建成功");
       }
@@ -208,25 +248,154 @@ export default function ApiProductFormModal({
         <Form.Item
           label="自动审批订阅"
           name="autoApprove"
-          tooltip="启用后，该产品的订阅申请将自动审批通过，无需管理员手动审批。留空则使用平台级别的自动审批设置。"
+          tooltip={{
+            title: (
+              <div style={{ 
+                color: '#000000', 
+                backgroundColor: '#ffffff',
+                fontSize: '13px',
+                lineHeight: '1.4',
+                padding: '4px 0'
+              }}>
+                启用后，该产品的订阅申请将自动审批通过，否则使用Portal的消费者订阅审批设置。
+              </div>
+            ),
+            placement: "topLeft",
+            overlayInnerStyle: {
+              backgroundColor: '#ffffff',
+              color: '#000000',
+              border: '1px solid #d9d9d9',
+              borderRadius: '6px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            },
+            overlayStyle: {
+              maxWidth: '300px'
+            }
+          }}
+          valuePropName="checked"
         >
-          <Select placeholder="请选择自动审批设置" allowClear>
-            <Select.Option value={true}>启用</Select.Option>
-            <Select.Option value={false}>禁用</Select.Option>
-          </Select>
+          <Switch />
         </Form.Item>
 
-        <Form.Item label="上传头像" name="icon">
-          <Upload
-            listType="picture-card"
-            beforeUpload={() => false} // ✅ 关键：阻止自动上传
-            fileList={fileList}
-            onPreview={handlePreview}
-            onChange={handleChange}
-            maxCount={1}
-          >
-            {fileList.length >= 1 ? null : uploadButton}
-          </Upload>
+        <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Radio.Group 
+              value={iconMode} 
+              onChange={(e) => handleIconModeChange(e.target.value)}
+            >
+              <Radio value="URL">图片链接</Radio>
+              <Radio value="BASE64">本地上传</Radio>
+            </Radio.Group>
+            
+            {iconMode === 'URL' ? (
+              <Form.Item 
+                name="iconUrl" 
+                style={{ marginBottom: 0 }}
+                rules={[
+                  { 
+                    type: 'url', 
+                    message: '请输入有效的图片链接' 
+                  }
+                ]}
+              >
+                <Input placeholder="请输入图片链接地址" />
+              </Form.Item>
+            ) : (
+              <Form.Item name="icon" style={{ marginBottom: 0 }}>
+                <div 
+                  style={{ 
+                    width: '80px', 
+                    height: '80px',
+                    border: '1px dashed #d9d9d9',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.3s',
+                    position: 'relative'
+                  }}
+                  onClick={() => {
+                    // 触发文件选择
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        // 验证文件大小，限制为16KB
+                        const maxSize = 16 * 1024; // 16KB
+                        if (file.size > maxSize) {
+                          message.error(`图片大小不能超过 16KB，当前图片大小为 ${Math.round(file.size / 1024)}KB`);
+                          return;
+                        }
+                        
+                        const newFileList: UploadFile[] = [{
+                          uid: Date.now().toString(),
+                          name: file.name,
+                          status: 'done' as const,
+                          url: URL.createObjectURL(file)
+                        }];
+                        setFileList(newFileList);
+                        getBase64(file).then((base64) => {
+                          form.setFieldsValue({ icon: base64 });
+                        });
+                      }
+                    };
+                    input.click();
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#1890ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#d9d9d9';
+                  }}
+                >
+                  {fileList.length >= 1 ? (
+                    <img 
+                      src={fileList[0].url} 
+                      alt="uploaded" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // 预览图片
+                        setPreviewImage(fileList[0].url || '');
+                        setPreviewOpen(true);
+                      }}
+                    />
+                  ) : (
+                    uploadButton
+                  )}
+                  {fileList.length >= 1 && (
+                    <div 
+                      style={{ 
+                        position: 'absolute', 
+                        top: '4px', 
+                        right: '4px', 
+                        background: 'rgba(0, 0, 0, 0.5)', 
+                        borderRadius: '50%', 
+                        width: '16px', 
+                        height: '16px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: 'white',
+                        fontSize: '10px'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFileList([]);
+                        form.setFieldsValue({ icon: null });
+                      }}
+                    >
+                      ×
+                    </div>
+                  )}
+                </div>
+              </Form.Item>
+            )}
+          </Space>
         </Form.Item>
 
         {/* 图片预览弹窗 */}

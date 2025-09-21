@@ -6,19 +6,10 @@ import { getConsumers, deleteConsumer, createConsumer } from "../lib/api";
 import { message, Modal } from "antd";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { formatDateTime } from "../lib/utils";
+import type { Consumer } from "../types/consumer";
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
-
-interface Consumer {
-  consumerId: string;
-  name: string;
-  description?: string;
-  status?: string;
-  plan?: string;
-  createAt?: string;
-  // 你可以根据接口补充更多字段
-}
 
 function ConsumersPage() {
   const navigate = useNavigate();

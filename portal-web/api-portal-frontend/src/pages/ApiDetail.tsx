@@ -1,36 +1,28 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Card, Table, Tag, Alert, Button, Modal } from "antd";
-
-import { FileTextOutlined } from "@ant-design/icons";
+import { Card, Alert, Row, Col, Tabs } from "antd";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
+import { SwaggerUIWrapper } from "../components/SwaggerUIWrapper";
 import api from "../lib/api";
 import type { Product, ApiResponse } from "../types";
-import MonacoEditor from "react-monaco-editor";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from 'remark-gfm';
-import 'react-markdown-editor-lite/lib/index.css'
+import 'react-markdown-editor-lite/lib/index.css';
+import * as yaml from 'js-yaml';
+import { Button, Typography, Space, Divider, message } from "antd";
+import { CopyOutlined, RocketOutlined, DownloadOutlined } from "@ant-design/icons";
 
-interface ApiEndpoint {
-  key: string;
-  method: string;
-  path: string;
-  description: string;
-  operationId?: string;
-  spec?: string;
-}
-
-interface ApiConfig {
-  spec: string;
-  meta: {
-    source: string;
-    type: string;
-  };
-}
+const { Title, Paragraph } = Typography;
 
 interface UpdatedProduct extends Omit<Product, 'apiSpec'> {
-  apiConfig?: ApiConfig;
+  apiConfig?: {
+    spec: string;
+    meta: {
+      source: string;
+      type: string;
+    };
+  };
   createAt: string;
   enabled: boolean;
 }
@@ -40,9 +32,9 @@ function ApiDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [apiData, setApiData] = useState<UpdatedProduct | null>(null);
-  const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
-  const [isSpecModalVisible, setIsSpecModalVisible] = useState(false);
-  const [currentSpec, setCurrentSpec] = useState('');
+  const [baseUrl, setBaseUrl] = useState<string>('');
+  const [examplePath, setExamplePath] = useState<string>('/{path}');
+  const [exampleMethod, setExampleMethod] = useState<string>('GET');
 
   useEffect(() => {
     if (!id) return;
@@ -57,71 +49,42 @@ function ApiDetailPage() {
       if (response.code === "SUCCESS" && response.data) {
         setApiData(response.data);
         
-        // 尝试从apiConfig.spec中解析端点信息
+        // 提取基础URL和示例路径用于curl示例
         if (response.data.apiConfig?.spec) {
           try {
-            // 解析OpenAPI规范
-            const spec = response.data.apiConfig.spec;
-            const endpointsList: ApiEndpoint[] = [];
+            let openApiDoc: any;
+            try {
+              openApiDoc = yaml.load(response.data.apiConfig.spec);
+            } catch {
+              openApiDoc = JSON.parse(response.data.apiConfig.spec);
+            }
             
-            // 改进的OpenAPI解析逻辑
-            const lines = spec.split('\n');
-            let currentPath = '';
-            let inPaths = false;
+            // 提取服务器URL并处理尾部斜杠
+            let serverUrl = openApiDoc?.servers?.[0]?.url || '';
+            if (serverUrl && serverUrl.endsWith('/')) {
+              serverUrl = serverUrl.slice(0, -1); // 移除末尾的斜杠
+            }
+            setBaseUrl(serverUrl);
             
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i];
-              const trimmedLine = line.trim();
-              const indentLevel = line.length - line.trimStart().length;
-              
-              // 检测是否进入paths部分
-              if (trimmedLine === 'paths:' || trimmedLine.startsWith('paths:')) {
-                inPaths = true;
-                continue;
-              }
-              
-              // 如果不在paths部分，跳过
-              if (!inPaths) continue;
-              
-              // 检测路径 - 必须是顶级缩进（通常是2个空格）
-              if (inPaths && indentLevel === 2 && trimmedLine.startsWith('/') && trimmedLine.endsWith(':')) {
-                currentPath = trimmedLine.slice(0, -1); // 移除末尾的冒号
-                continue;
-              }
-              
-              // 检测HTTP方法 - 必须是路径下的子级（通常是4个空格）
-              if (inPaths && indentLevel === 4) {
-                const httpMethods = ['get:', 'post:', 'put:', 'delete:', 'patch:', 'head:', 'options:'];
-                for (const method of httpMethods) {
-                  if (trimmedLine.startsWith(method)) {
-                    const methodName = method.replace(':', '').toUpperCase();
-                    const operationId = extractOperationId(lines, i);
-                    
-                    endpointsList.push({
-                      key: `${methodName}-${currentPath}`,
-                      method: methodName,
-                      path: currentPath,
-                      description: operationId || `${methodName} ${currentPath}`,
-                      operationId: operationId,
-                      spec: spec
-                    });
-                    break;
+            // 提取第一个可用的路径和方法作为示例
+            const paths = openApiDoc?.paths;
+            if (paths && typeof paths === 'object') {
+              const pathEntries = Object.entries(paths);
+              if (pathEntries.length > 0) {
+                const [firstPath, pathMethods] = pathEntries[0] as [string, any];
+                if (pathMethods && typeof pathMethods === 'object') {
+                  const methods = Object.keys(pathMethods);
+                  if (methods.length > 0) {
+                    const firstMethod = methods[0].toUpperCase();
+                    setExamplePath(firstPath);
+                    setExampleMethod(firstMethod);
                   }
                 }
               }
             }
-            
-            if (endpointsList.length > 0) {
-              setEndpoints(endpointsList);
-            } else {
-              setDefaultEndpoints();
-            }
           } catch (error) {
-            console.warn('解析API规范失败:', error);
-            setDefaultEndpoints();
+            console.error('解析OpenAPI规范失败:', error);
           }
-        } else {
-          setDefaultEndpoints();
         }
       }
     } catch (error) {
@@ -132,79 +95,6 @@ function ApiDetailPage() {
     }
   };
 
-  const extractOperationId = (lines: string[], startIndex: number): string => {
-    // 从当前行开始向后查找operationId
-    const currentIndent = lines[startIndex].length - lines[startIndex].trimStart().length;
-    
-    for (let i = startIndex + 1; i < Math.min(startIndex + 20, lines.length); i++) {
-      const line = lines[i];
-      const trimmedLine = line.trim();
-      const lineIndent = line.length - line.trimStart().length;
-      
-      // 如果缩进级别小于等于当前级别，说明已经离开了当前方法块
-      if (lineIndent <= currentIndent && trimmedLine !== '') {
-        break;
-      }
-      
-      // 查找operationId
-      if (trimmedLine.startsWith('operationId:')) {
-        return trimmedLine.replace('operationId:', '').trim();
-      }
-    }
-    return '';
-  };
-
-  const setDefaultEndpoints = () => {
-    setEndpoints([
-      {
-        key: "1",
-        method: "GET",
-        path: "/api/endpoints",
-        description: "获取端点列表"
-      }
-    ]);
-  };
-
-  const showSpecModal = (spec: string) => {
-    setCurrentSpec(spec);
-    setIsSpecModalVisible(true);
-  };
-  const columns = [
-    {
-      title: '方法',
-      dataIndex: 'method',
-      key: 'method',
-      width: 100,
-      render: (method: string) => (
-        <Tag color={method === 'GET' ? 'green' : method === 'POST' ? 'blue' : method === 'PUT' ? 'orange' : method === 'DELETE' ? 'red' : 'default'}>
-          {method}
-        </Tag>
-      )
-    },
-    {
-      title: '路径',
-      dataIndex: 'path',
-      key: 'path',
-      width: 200,
-      render: (path: string) => (
-        <code className="text-sm bg-gray-100 px-2 py-1 rounded">{path}</code>
-      )
-    },
-    // {
-    //   title: '操作ID',
-    //   dataIndex: 'operationId',
-    //   key: 'operationId',
-    //   width: 150,
-    //   render: (operationId: string) => (
-    //     <span className="text-sm text-gray-600">{operationId || '-'}</span>
-    //   )
-    // },
-    // {
-    //   title: '描述',
-    //   dataIndex: 'description',
-    //   key: 'description',
-    // }
-  ];
 
 
 
@@ -226,92 +116,305 @@ function ApiDetailPage() {
 
   return (
     <Layout loading={loading}>
-      <ProductHeader
-        name={apiData.name}
-        description={apiData.description}
-        status={apiData.status}
-        category={apiData.category}
-        icon={apiData.icon || undefined}
-        defaultIcon="/logo.png"
-        // version="v1.0.0"
-        enabled={apiData.enabled}
-        showVersion={true}
-        showEnabled={false}
-      />
-
-      <Card className="mb-6" title="使用指南">
-        { apiData.document ? (
-                <div className="prose custom-html-style h-[500px] overflow-auto">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{apiData.document}</ReactMarkdown>
-                </div>
-              ) : (
-                <div className="text-gray-500 text-center py-8">
-                  暂无文档内容
-                </div>
-              )}
-      </Card>
-
-      <Card 
-        title={
-          <div className="flex items-center justify-between">
-            <span>API 端点</span>
-            {apiData.apiConfig && (
-              <Button 
-                type="text" 
-                icon={<FileTextOutlined />} 
-                onClick={() => showSpecModal(apiData.apiConfig!.spec)}
-                className="text-blue-500 hover:text-blue-700"
-              >
-                查看 OpenAPI 规范
-              </Button>
-            )}
-          </div>
-        } 
-        className="mb-8"
-      >
-        <Table 
-          columns={columns} 
-          dataSource={endpoints}
-          rowKey="key"
-          pagination={false}
-          size="small"
+      <div className="mb-6">
+        <ProductHeader
+          name={apiData.name}
+          description={apiData.description}
+          icon={apiData.icon}
+          defaultIcon="/logo.svg"
+          updatedAt={apiData.updatedAt}
+          productType="REST_API"
         />
-      </Card>
+        <hr className="border-gray-200 mt-4" />
+      </div>
 
-      {/* OpenAPI 规范模态框 */}
-      <Modal
-        title="OpenAPI 规范"
-        open={isSpecModalVisible}
-        onCancel={() => setIsSpecModalVisible(false)}
-        footer={null}
-        width="80%"
-        style={{ top: 20 }}
-        bodyStyle={{ height: '70vh', padding: 0 }}
-      >
-        <div style={{ height: '100%' }}>
-          <MonacoEditor
-            language="yaml"
-            theme="vs-dark"
-            value={currentSpec}
-            options={{
-              readOnly: true,
-              minimap: { enabled: true },
-              scrollBeyondLastLine: false,
-              scrollbar: {
-                vertical: "visible",
-                horizontal: "visible",
-              },
-              wordWrap: "off",
-              lineNumbers: "on",
-              automaticLayout: true,
-              fontSize: 14,
-              copyWithSyntaxHighlighting: true,
-              contextmenu: true,
-            }}
-            height="100%"
-          />
-        </div>
-      </Modal>
+      {/* 主要内容区域 - 左右布局 */}
+      <Row gutter={24}>
+        {/* 左侧内容 */}
+        <Col span={15}>
+          <Card className="mb-6">
+            <Tabs
+              defaultActiveKey="overview"
+              items={[
+                {
+                  key: "overview",
+                  label: "Overview",
+                  children: apiData.document ? (
+                    <div className="min-h-[400px]">
+                      <div 
+                        className="prose prose-lg max-w-none"
+                        style={{
+                          lineHeight: '1.7',
+                          color: '#374151',
+                          fontSize: '16px',
+                          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+                        }}
+                      >
+                        <style>{`
+                          .prose h1 {
+                            color: #111827;
+                            font-weight: 700;
+                            font-size: 2.25rem;
+                            line-height: 1.2;
+                            margin-top: 0;
+                            margin-bottom: 1.5rem;
+                            border-bottom: 2px solid #e5e7eb;
+                            padding-bottom: 0.5rem;
+                          }
+                          .prose h2 {
+                            color: #1f2937;
+                            font-weight: 600;
+                            font-size: 1.875rem;
+                            line-height: 1.3;
+                            margin-top: 2rem;
+                            margin-bottom: 1rem;
+                            border-bottom: 1px solid #e5e7eb;
+                            padding-bottom: 0.25rem;
+                          }
+                          .prose h3 {
+                            color: #374151;
+                            font-weight: 600;
+                            font-size: 1.5rem;
+                            margin-top: 1.5rem;
+                            margin-bottom: 0.75rem;
+                          }
+                          .prose p {
+                            margin-bottom: 1.25rem;
+                            color: #4b5563;
+                            line-height: 1.7;
+                            font-size: 16px;
+                          }
+                          .prose code {
+                            background-color: #f3f4f6;
+                            border: 1px solid #e5e7eb;
+                            border-radius: 0.375rem;
+                            padding: 0.125rem 0.375rem;
+                            font-size: 0.875rem;
+                            color: #374151;
+                            font-weight: 500;
+                          }
+                          .prose pre {
+                            background-color: #1f2937;
+                            border-radius: 0.5rem;
+                            padding: 1.25rem;
+                            overflow-x: auto;
+                            margin: 1.5rem 0;
+                            border: 1px solid #374151;
+                          }
+                          .prose pre code {
+                            background-color: transparent;
+                            border: none;
+                            color: #f9fafb;
+                            padding: 0;
+                            font-size: 0.875rem;
+                            font-weight: normal;
+                          }
+                          .prose blockquote {
+                            border-left: 4px solid #3b82f6;
+                            padding-left: 1rem;
+                            margin: 1.5rem 0;
+                            color: #6b7280;
+                            font-style: italic;
+                            background-color: #f8fafc;
+                            padding: 1rem;
+                            border-radius: 0.375rem;
+                            font-size: 16px;
+                          }
+                          .prose ul, .prose ol {
+                            margin: 1.25rem 0;
+                            padding-left: 1.5rem;
+                          }
+                          .prose ol {
+                            list-style-type: decimal;
+                            list-style-position: outside;
+                          }
+                          .prose ul {
+                            list-style-type: disc;
+                            list-style-position: outside;
+                          }
+                          .prose li {
+                            margin: 0.5rem 0;
+                            color: #4b5563;
+                            display: list-item;
+                            font-size: 16px;
+                          }
+                          .prose ol li {
+                            padding-left: 0.25rem;
+                          }
+                          .prose ul li {
+                            padding-left: 0.25rem;
+                          }
+                          .prose table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 1.5rem 0;
+                            font-size: 16px;
+                          }
+                          .prose th, .prose td {
+                            border: 1px solid #d1d5db;
+                            padding: 0.75rem;
+                            text-align: left;
+                          }
+                          .prose th {
+                            background-color: #f9fafb;
+                            font-weight: 600;
+                            color: #374151;
+                            font-size: 16px;
+                          }
+                          .prose td {
+                            color: #4b5563;
+                            font-size: 16px;
+                          }
+                          .prose a {
+                            color: #3b82f6;
+                            text-decoration: underline;
+                            font-weight: 500;
+                            transition: color 0.2s;
+                            font-size: inherit;
+                          }
+                          .prose a:hover {
+                            color: #1d4ed8;
+                          }
+                          .prose strong {
+                            color: #111827;
+                            font-weight: 600;
+                            font-size: inherit;
+                          }
+                          .prose em {
+                            color: #6b7280;
+                            font-style: italic;
+                            font-size: inherit;
+                          }
+                          .prose hr {
+                            border: none;
+                            height: 1px;
+                            background-color: #e5e7eb;
+                            margin: 2rem 0;
+                          }
+                        `}</style>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{apiData.document}</ReactMarkdown>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-center py-8">
+                      暂无文档内容
+                    </div>
+                  ),
+                },
+                {
+                  key: "openapi-spec",
+                  label: "OpenAPI Specification",
+                  children: (
+                    <div>
+                      {apiData.apiConfig && apiData.apiConfig.spec ? (
+                        <SwaggerUIWrapper apiSpec={apiData.apiConfig.spec} />
+                      ) : (
+                        <div className="text-gray-500 text-center py-8">
+                          暂无OpenAPI规范
+                        </div>
+                      )}
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          </Card>
+        </Col>
+
+        {/* 右侧内容 */}
+        <Col span={9}>
+          <Card title={
+            <Space>
+              <RocketOutlined />
+              <span>快速开始</span>
+            </Space>
+          }>
+            <Space direction="vertical" className="w-full" size="middle">
+              {/* cURL示例 */}
+              <div>
+                <Title level={5}>cURL调用示例</Title>
+                <div className="bg-gray-50 p-3 rounded border relative">
+                  <pre className="text-sm mb-0">
+{`curl -X ${exampleMethod} \\
+  '${baseUrl || 'https://api.example.com'}${examplePath}' \\
+  -H 'Accept: application/json' \\
+  -H 'Content-Type: application/json'`}
+                  </pre>
+                  <Button 
+                    type="text" 
+                    size="small"
+                    icon={<CopyOutlined />}
+                    className="absolute top-2 right-2"
+                    onClick={() => {
+                      const curlCommand = `curl -X ${exampleMethod} \\\n  '${baseUrl || 'https://api.example.com'}${examplePath}' \\\n  -H 'Accept: application/json' \\\n  -H 'Content-Type: application/json'`;
+                      navigator.clipboard.writeText(curlCommand);
+                      message.success('cURL命令已复制到剪贴板', 1);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* 下载OAS文件 */}
+              <div>
+                <Title level={5}>OpenAPI规范文件</Title>
+                <Paragraph type="secondary">
+                  下载完整的OpenAPI规范文件，用于代码生成、API测试等场景
+                </Paragraph>
+                <Space>
+                  <Button 
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={() => {
+                      if (apiData?.apiConfig?.spec) {
+                        const blob = new Blob([apiData.apiConfig.spec], { type: 'text/yaml' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `${apiData.name || 'api'}-openapi.yaml`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                        message.success('OpenAPI规范文件下载成功', 1);
+                      }
+                    }}
+                  >
+                    下载YAML
+                  </Button>
+                  <Button 
+                    icon={<DownloadOutlined />}
+                    onClick={() => {
+                      if (apiData?.apiConfig?.spec) {
+                        try {
+                          const yamlDoc = yaml.load(apiData.apiConfig.spec);
+                          const jsonSpec = JSON.stringify(yamlDoc, null, 2);
+                          const blob = new Blob([jsonSpec], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `${apiData.name || 'api'}-openapi.json`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          URL.revokeObjectURL(url);
+                          message.success('OpenAPI规范文件下载成功', 1);
+                        } catch (error) {
+                          message.error('转换JSON格式失败');
+                        }
+                      }
+                    }}
+                  >
+                    下载JSON
+                  </Button>
+                </Space>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+
     </Layout>
   );
 }

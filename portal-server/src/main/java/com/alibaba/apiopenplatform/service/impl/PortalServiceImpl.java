@@ -39,6 +39,12 @@ import com.alibaba.apiopenplatform.entity.ProductSubscription;
 import com.alibaba.apiopenplatform.repository.PortalDomainRepository;
 import com.alibaba.apiopenplatform.repository.PortalRepository;
 import com.alibaba.apiopenplatform.repository.SubscriptionRepository;
+import com.alibaba.apiopenplatform.repository.ProductPublicationRepository;
+import com.alibaba.apiopenplatform.repository.ProductRefRepository;
+import com.alibaba.apiopenplatform.service.GatewayService;
+import com.alibaba.apiopenplatform.entity.ProductPublication;
+import com.alibaba.apiopenplatform.entity.ProductRef;
+import org.springframework.data.domain.PageRequest;
 import com.alibaba.apiopenplatform.service.IdpService;
 import com.alibaba.apiopenplatform.service.PortalService;
 import com.alibaba.apiopenplatform.support.enums.DomainType;
@@ -80,6 +86,12 @@ public class PortalServiceImpl implements PortalService {
     private final IdpService idpService;
 
     private final String domainFormat = "%s.api.portal.local";
+
+    private final ProductPublicationRepository publicationRepository;
+
+    private final ProductRefRepository productRefRepository;
+
+    private final GatewayService gatewayService;
 
     public PortalResult createPortal(CreatePortalParam param) {
         portalRepository.findByName(param.getName())
@@ -255,6 +267,28 @@ public class PortalServiceImpl implements PortalService {
             return null;
         }
         return portal.getPortalId();
+    }
+
+    @Override
+    public String getDashboard(String portalId) {
+        existsPortal(portalId);
+
+        // 找到该门户下任一已发布产品（取第一页第一条）
+        ProductPublication pub = publicationRepository.findByPortalId(portalId, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
+
+        // 取产品的网关引用
+        ProductRef productRef = productRefRepository.findFirstByProductId(pub.getProductId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, pub.getProductId()));
+
+        if (productRef.getGatewayId() == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "网关", "该门户下的产品尚未关联网关服务");
+        }
+
+        // 复用网关的Dashboard能力
+        return gatewayService.getDashboard(productRef.getGatewayId(),"Portal");
     }
 
     private Portal findPortal(String portalId) {

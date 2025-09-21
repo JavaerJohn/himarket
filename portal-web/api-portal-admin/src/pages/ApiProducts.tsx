@@ -1,13 +1,12 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
-import { Badge, Button, Card, Dropdown, Modal, message, Pagination, Skeleton } from 'antd';
-import type { ApiProduct } from '@/types/api-product';
-import { ApiOutlined, ClockCircleOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Badge, Button, Card, Dropdown, Modal, message, Pagination, Skeleton, Input, Select, Tag, Space } from 'antd';
+import type { ApiProduct, ProductIcon } from '@/types/api-product';
+import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined } from '@ant-design/icons';
+import McpServerIcon from '@/components/icons/McpServerIcon';
 import { apiProductApi } from '@/lib/api';
-import { getStatusBadgeVariant } from '@/lib/utils';
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
-import { AdvancedSearch, SearchParam } from '@/components/common/AdvancedSearch';
 
 // 优化的产品卡片组件
 const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
@@ -16,20 +15,24 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
   handleRefresh: () => void;
   onEdit: (product: ApiProduct) => void;
 }) => {
-  const getTypeIcon = (icon: string, type: string) => {
-    if (icon && icon.includes("value=")) {
-      const startIndex = icon.indexOf("value=") + 6;
-      const endIndex = icon.length - 1;
-      const base64Data = icon.substring(startIndex, endIndex).trim();
-      return <img src={base64Data} alt="icon" style={{ borderRadius: '8px', minHeight: '40px' }} />
+  // 处理产品图标的函数
+  const getTypeIcon = (icon: ProductIcon | null | undefined, type: string) => {
+    if (icon) {
+      switch (icon.type) {
+        case "URL":
+          return <img src={icon.value} alt="icon" style={{ borderRadius: '8px', minHeight: '40px', width: '40px', height: '40px', objectFit: 'cover' }} />
+        case "BASE64":
+          // 如果value已经包含data URL前缀，直接使用；否则添加前缀
+          const src = icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`;
+          return <img src={src} alt="icon" style={{ borderRadius: '8px', minHeight: '40px', width: '40px', height: '40px', objectFit: 'cover' }} />
+        default:
+          return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+      }
     } else {
-       return type === "REST_API" ? <ApiOutlined className="h-4 w-4" /> : <ClockCircleOutlined className="h-4 w-4" />
-     }
+      return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+    }
   }
 
-  const getTypeBadgeVariant = (type: string) => {
-    return type === "REST_API" ? "blue" : "purple"
-  }
   const handleClick = useCallback(() => {
     onNavigate(product.productId)
   }, [product.productId, onNavigate]);
@@ -76,21 +79,41 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
 
   return (
     <Card
-      className="hover:shadow-lg transition-shadow cursor-pointer"
+      className="hover:shadow-lg transition-shadow cursor-pointer rounded-xl border border-gray-200 shadow-sm hover:border-blue-300"
       onClick={handleClick}
       bodyStyle={{ padding: '16px' }}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-            {getTypeIcon(product.icon || '', product.type)}
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
+            {getTypeIcon(product.icon, product.type)}
           </div>
           <div>
             <h3 className="text-lg font-semibold">{product.name}</h3>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <div className="flex items-center gap-3 mt-1 flex-wrap">
               {product.category && <Badge color="green" text={product.category} />}
-              <Badge color={getTypeBadgeVariant(product.type)} text={product.type === "REST_API" ? "REST API" : "MCP Server"} />
-              <Badge color={getStatusBadgeVariant(product.status)} text={product.status === "PENDING" ? "待配置" : product.status === "READY" ? "待发布" : "已发布"} />
+              <div className="flex items-center">
+                {product.type === "REST_API" ? (
+                  <ApiOutlined className="text-blue-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                ) : (
+                  <McpServerIcon className="text-black mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                )}
+                <span className="text-xs text-gray-700">
+                  {product.type === "REST_API" ? "REST API" : "MCP Server"}
+                </span>
+              </div>
+              <div className="flex items-center">
+                {product.status === "PENDING" ? (
+                  <ExclamationCircleFilled className="text-yellow-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                ) : product.status === "READY" ? (
+                  <ClockCircleFilled className="text-blue-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                ) : (
+                  <CheckCircleFilled className="text-green-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                )}
+                <span className="text-xs text-gray-700">
+                  {product.status === "PENDING" ? "待配置" : product.status === "READY" ? "待发布" : "已发布"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -108,13 +131,6 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
           <p className="text-sm text-gray-600">{product.description}</p>
         )}
 
-        <div className="space-y-2 text-sm">
-
-          <div className="flex justify-between">
-            <span className="text-gray-500">Product ID</span>
-            <span>{product.productId}</span>
-          </div>
-        </div>
       </div>
     </Card>
   )
@@ -136,6 +152,11 @@ export default function ApiProducts() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
 
+  // 搜索状态
+  const [searchValue, setSearchValue] = useState('');
+  const [searchType, setSearchType] = useState<'name' | 'type'>('name');
+  const [activeFilters, setActiveFilters] = useState<Array<{ type: string; value: string; label: string }>>([]);
+
   const fetchApiProducts = useCallback((page = 1, size = 12, queryFilters?: { type?: string, name?: string }) => {
     setLoading(true);
     const params = { page, size, ...(queryFilters || {}) };
@@ -156,53 +177,70 @@ export default function ApiProducts() {
     fetchApiProducts(1, 12);
   }, []); // 只在组件初始化时执行一次
 
-  // 预设的产品类型（无 "All"）
-  const typeOptions = useMemo(() => (
-    [
-      { label: 'REST API', value: 'REST_API' },
-      { label: 'MCP Server', value: 'MCP_SERVER' },
-    ]
-  ), [])
+  // 产品类型选项
+  const typeOptions = [
+    { label: 'REST API', value: 'REST_API' },
+    { label: 'MCP Server', value: 'MCP_SERVER' },
+  ];
 
-  // 高级搜索配置
-  const searchParamsList: SearchParam[] = useMemo(() => [
-    {
-      label: '产品名称',
-      name: 'name',
-      placeholder: '请输入产品名称',
-      type: 'input'
-    },
-    // {
-    //   label: '产品分类',
-    //   name: 'category',
-    //   placeholder: '选择分类',
-    //   type: 'select',
-    //   optionList: categories.filter(cat => cat !== 'All').map(cat => ({
-    //     label: cat,
-    //     value: cat
-    //   }))
-    // },
-    {
-      label: '产品类型',
-      name: 'type',
-      placeholder: '选择类型',
-      type: 'select',
-      optionList: typeOptions,
+  // 搜索类型选项
+  const searchTypeOptions = [
+    { label: '产品名称', value: 'name' as const },
+    { label: '产品类型', value: 'type' as const },
+  ];
+
+  // 搜索处理函数
+  const handleSearch = () => {
+    if (searchValue.trim()) {
+      let labelText = '';
+      let filterValue = searchValue.trim();
+      
+      if (searchType === 'name') {
+        labelText = `产品名称：${searchValue.trim()}`;
+      } else {
+        const typeLabel = typeOptions.find(opt => opt.value === searchValue.trim())?.label || searchValue.trim();
+        labelText = `产品类型：${typeLabel}`;
+      }
+      
+      const newFilter = { type: searchType, value: filterValue, label: labelText };
+      const updatedFilters = activeFilters.filter(f => f.type !== searchType);
+      updatedFilters.push(newFilter);
+      setActiveFilters(updatedFilters);
+      
+      const filters: { type?: string, name?: string } = {};
+      updatedFilters.forEach(filter => {
+        if (filter.type === 'type' || filter.type === 'name') {
+          filters[filter.type] = filter.value;
+        }
+      });
+      
+      setFilters(filters);
+      fetchApiProducts(1, pagination.pageSize, filters);
+      setSearchValue('');
     }
-  ], [typeOptions]);
-
-  // 搜索处理函数（仅服务端过滤）
-  const handleSearch = (searchName: string, searchValue: string) => {
-      const next = { [searchName]: searchValue || undefined };
-      setFilters(next);
-      fetchApiProducts(1, pagination.pageSize, next);
   };
 
-  const handleClearSearch = () => {
-    // 清空筛选并重新请求列表
-    const cleared = {} as { type?: string };
-    setFilters(cleared);
-    fetchApiProducts(1, pagination.pageSize, cleared);
+  // 移除单个筛选条件
+  const removeFilter = (filterType: string) => {
+    const updatedFilters = activeFilters.filter(f => f.type !== filterType);
+    setActiveFilters(updatedFilters);
+    
+    const newFilters: { type?: string, name?: string } = {};
+    updatedFilters.forEach(filter => {
+      if (filter.type === 'type' || filter.type === 'name') {
+        newFilters[filter.type] = filter.value;
+      }
+    });
+    
+    setFilters(newFilters);
+    fetchApiProducts(1, pagination.pageSize, newFilters);
+  };
+
+  // 清空所有筛选条件
+  const clearAllFilters = () => {
+    setActiveFilters([]);
+    setFilters({});
+    fetchApiProducts(1, pagination.pageSize, {});
   };
 
   // 处理分页变化
@@ -256,13 +294,144 @@ export default function ApiProducts() {
         </Button>
       </div>
 
-      {/* 高级搜索 */}
-      <AdvancedSearch
-        searchParamsList={searchParamsList}
-        onSearch={handleSearch}
-        onClear={handleClearSearch}
-        className="mb-4"
-      />
+      {/* 搜索和筛选 */}
+      <div className="space-y-4">
+        {/* 搜索框 */}
+        <div className="flex items-center max-w-xl">
+          {/* 左侧：搜索类型选择器 */}
+          <Select
+            value={searchType}
+            onChange={setSearchType}
+            style={{ 
+              width: 120,
+              borderTopRightRadius: 0,
+              borderBottomRightRadius: 0,
+              backgroundColor: '#f5f5f5',
+            }}
+            className="h-10"
+            size="large"
+          >
+            {searchTypeOptions.map(option => (
+              <Select.Option key={option.value} value={option.value}>
+                {option.label}
+              </Select.Option>
+            ))}
+          </Select>
+
+          {/* 中间：搜索值输入框或选择框 */}
+          {searchType === 'type' ? (
+            <Select
+              placeholder="请选择产品类型"
+              value={searchValue}
+              onChange={(value) => {
+                setSearchValue(value);
+                // 对于类型选择，立即执行搜索
+                if (value) {
+                  const typeLabel = typeOptions.find(opt => opt.value === value)?.label || value;
+                  const labelText = `产品类型：${typeLabel}`;
+                  const newFilter = { type: 'type', value, label: labelText };
+                  const updatedFilters = activeFilters.filter(f => f.type !== 'type');
+                  updatedFilters.push(newFilter);
+                  setActiveFilters(updatedFilters);
+                  
+                  const filters: { type?: string, name?: string } = {};
+                  updatedFilters.forEach(filter => {
+                    if (filter.type === 'type' || filter.type === 'name') {
+                      filters[filter.type] = filter.value;
+                    }
+                  });
+                  
+                  setFilters(filters);
+                  fetchApiProducts(1, pagination.pageSize, filters);
+                  setSearchValue('');
+                }
+              }}
+              style={{ 
+                flex: 1,
+                borderTopLeftRadius: 0,
+                borderBottomLeftRadius: 0,
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+              }}
+              allowClear
+              onClear={clearAllFilters}
+              className="h-10"
+              size="large"
+            >
+              {typeOptions.map(option => (
+                <Select.Option key={option.value} value={option.value}>
+                  {option.label}
+                </Select.Option>
+              ))}
+            </Select>
+          ) : (
+            <Input
+              placeholder="请输入要检索的产品名称"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              style={{ 
+                flex: 1,
+                borderTopLeftRadius: 0,
+                borderBottomLeftRadius: 0,
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+              }}
+              onPressEnter={handleSearch}
+              allowClear
+              onClear={() => setSearchValue('')}
+              size="large"
+              className="h-10"
+            />
+          )}
+
+          {/* 右侧：搜索按钮 */}
+          <Button
+            icon={<SearchOutlined />}
+            onClick={handleSearch}
+            style={{
+              borderTopLeftRadius: 0,
+              borderBottomLeftRadius: 0,
+              width: 48,
+            }}
+            className="h-10"
+            size="large"
+          />
+        </div>
+
+        {/* 筛选条件标签 */}
+        {activeFilters.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">筛选条件：</span>
+            <Space wrap>
+              {activeFilters.map(filter => (
+                <Tag
+                  key={filter.type}
+                  closable
+                  onClose={() => removeFilter(filter.type)}
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    border: '1px solid #d9d9d9',
+                    borderRadius: '16px',
+                    color: '#666',
+                    fontSize: '12px',
+                    padding: '4px 12px',
+                  }}
+                >
+                  {filter.label}
+                </Tag>
+              ))}
+            </Space>
+            <Button
+              type="link"
+              size="small"
+              onClick={clearAllFilters}
+              className="text-blue-500 hover:text-blue-600 text-sm"
+            >
+              清除筛选条件
+            </Button>
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

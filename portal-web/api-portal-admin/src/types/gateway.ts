@@ -19,4 +19,17 @@ export interface HigressConfig {
   password: string
 }
 
+export interface NacosInstance {
+  nacosId: string
+  nacosName: string
+  serverUrl: string
+  username: string
+  password?: string
+  accessKey?: string
+  secretKey?: string
+  description: string
+  adminId: string
+  createAt?: string | number
+}
+
 export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS'

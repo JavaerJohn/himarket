@@ -1,48 +1,56 @@
 import React, { useState } from "react";
-import { Typography, Tag, Space, Button, Modal, Form, Select, Input, message } from "antd";
-import { getStatusText, getStatusColor, getCategoryText, getCategoryColor } from "../lib/statusUtils";
+import { Typography, Button, Modal, Form, Select, Input, message } from "antd";
+import { ApiOutlined } from "@ant-design/icons";
 import { useParams } from "react-router-dom";
 import { getConsumers, subscribeProduct } from "../lib/api";
 import type { Consumer } from "../types/consumer";
-import type { McpConfig } from "../types";
+import type { McpConfig, ProductIcon } from "../types";
 
 const { Title, Paragraph } = Typography;
 
 interface ProductHeaderProps {
   name: string;
   description: string;
-  status: string;
-  category: string;
-  icon?: string;
+  icon?: ProductIcon | null;
   defaultIcon?: string;
-  enableConsumerAuth?: boolean;
-  version?: string;
-  enabled?: boolean;
-  showConsumerAuth?: boolean;
-  showVersion?: boolean;
-  showEnabled?: boolean;
   mcpConfig?: McpConfig | null;
+  updatedAt?: string;
+  productType?: 'REST_API' | 'MCP_SERVER';
 }
+
+// 处理产品图标的函数
+const getIconUrl = (icon?: ProductIcon | null, defaultIcon?: string): string => {
+  const fallback = defaultIcon || "/logo.svg";
+  
+  if (!icon) {
+    return fallback;
+  }
+  
+  switch (icon.type) {
+    case "URL":
+      return icon.value || fallback;
+    case "BASE64":
+      // 如果value已经包含data URL前缀，直接使用；否则添加前缀
+      return icon.value ? (icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`) : fallback;
+    default:
+      return fallback;
+  }
+};
 
 export const ProductHeader: React.FC<ProductHeaderProps> = ({
   name,
   description,
-  status,
-  category,
   icon,
   defaultIcon = "/default-icon.png",
-  enableConsumerAuth,
-  version,
-  enabled,
-  showConsumerAuth = false,
-  showVersion = false,
-  showEnabled = false,
   mcpConfig,
+  updatedAt,
+  productType,
 }) => {
   const { id, mcpName } = useParams();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [consumers, setConsumers] = useState<Consumer[]>([]);
   const [loading, setLoading] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [form] = Form.useForm();
 
   // 判断是否应该显示申请订阅按钮
@@ -82,7 +90,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
       
       // 调用申请订阅API
       await subscribeProduct(values.consumerId, id || mcpName || '');
-      message.success('申请提交成功');
+      message.success('申请提交成功', 1);
       setIsModalVisible(false);
       form.resetFields();
     } catch (error) {
@@ -92,52 +100,63 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   };
 
   return (
-    <div className="mb-8">
-      <div className="flex items-start gap-4 mb-4">
-        <img
-          src={icon || defaultIcon}
-          alt="icon"
-          className="w-16 h-16 rounded-lg object-cover border"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = defaultIcon;
-          }}
-        />
-        <div className="flex-1">
-          <Title level={1} className="mb-2">
-            {name}
-          </Title>
-          <Space className="mb-3">
-            <Tag color={getStatusColor(status)}>
-              {getStatusText(status)}
-            </Tag>
-            {category && (
-              <Tag color={getCategoryColor(category)}>
-                {getCategoryText(category)}
-              </Tag>
+    <>
+      <div className="mb-2">
+        {/* 第一行：图标和标题信息 */}
+        <div className="flex items-center gap-4 mb-3">
+          {(!icon || imageLoadFailed) && productType === 'REST_API' ? (
+            <div className="w-16 h-16 rounded-lg flex-shrink-0 flex items-center justify-center">
+              <ApiOutlined className="text-3xl text-black" />
+            </div>
+          ) : (
+            <img
+              src={getIconUrl(icon, defaultIcon)}
+              alt="icon"
+              className="w-16 h-16 rounded-lg object-cover border flex-shrink-0"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (productType === 'REST_API') {
+                  setImageLoadFailed(true);
+                } else {
+                  // 确保有一个最终的fallback图片，避免无限循环请求
+                  const fallbackIcon = defaultIcon || "/logo.svg";
+                  const currentUrl = new URL(target.src, window.location.href).href;
+                  const fallbackUrl = new URL(fallbackIcon, window.location.href).href;
+                  if (currentUrl !== fallbackUrl) {
+                    target.src = fallbackIcon;
+                  }
+                }
+              }}
+            />
+          )}
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+            <Title level={3} className="mb-1 text-xl font-semibold">
+              {name}
+            </Title>
+            {updatedAt && (
+              <div className="text-sm text-gray-400">
+                {new Date(updatedAt).toLocaleDateString('zh-CN', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit'
+                }).replace(/\//g, '.')} updated
+              </div>
             )}
-            {showVersion && version && (
-              <Tag color="blue">{version}</Tag>
-            )}
-            {showEnabled && typeof enabled !== "undefined" && (
-              <Tag color={enabled ? "green" : "red"}>
-                {enabled ? "已启用" : "未启用"}
-              </Tag>
-            )}
-            {showConsumerAuth && typeof enableConsumerAuth !== "undefined" && (
-              <Tag color={enableConsumerAuth ? "green" : "orange"}>
-                消费者鉴权: {enableConsumerAuth ? "开启" : "关闭"}
-              </Tag>
-            )}
-          </Space>
+          </div>
         </div>
+        
+        {/* 第二行：描述信息，与左边框对齐 */}
+        <Paragraph className="text-gray-600 mb-3 text-sm leading-relaxed">
+          {description}
+        </Paragraph>
+        
+        {/* 第三行：申请订阅按钮，与左边框对齐 */}
+        {shouldShowSubscribeButton && (
+          <Button type="primary" onClick={showModal}>
+            申请订阅
+          </Button>
+        )}
       </div>
-      <Paragraph className="text-gray-600 mb-3">{description}</Paragraph>
-      {shouldShowSubscribeButton && (
-        <Button type="primary" onClick={showModal}>
-          申请订阅
-        </Button>
-      )}
 
       {/* 申请订阅弹窗 */}
       <Modal
@@ -198,6 +217,6 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
           </Form.Item> */}
         </Form>
       </Modal>
-    </div>
+    </>
   );
 }; 

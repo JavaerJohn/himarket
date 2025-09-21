@@ -5,19 +5,7 @@ import { PlusOutlined } from '@ant-design/icons'
 import { nacosApi } from '@/lib/api'
 import NacosTypeSelector, { NacosImportType } from '@/components/console/NacosTypeSelector'
 import ImportMseNacosModal from '@/components/console/ImportMseNacosModal'
-
-interface NacosInstance {
-  nacosId: string
-  nacosName: string
-  serverUrl: string
-  username: string
-  password?: string
-  accessKey?: string
-  secretKey?: string
-  description: string
-  adminId: string
-  createAt?: string | number
-}
+import type { NacosInstance } from '@/types/gateway'
 
 // 开源创建表单数据由 antd 表单直接管理，无需额外类型声明
 

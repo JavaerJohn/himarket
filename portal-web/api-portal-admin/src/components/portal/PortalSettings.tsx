@@ -28,9 +28,8 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
             const values = await form.validateFields()
             
             await portalApi.updatePortal(portal.portalId, {
-                name: values.name,
-                title: values.title,
-                description: values.description,
+                name: portal.name, // 保持现有名称不变
+                description: portal.description, // 保持现有描述不变
                 portalSettingConfig: {
                     ...portal.portalSettingConfig,
                     builtinAuthEnabled: values.builtinAuthEnabled,
@@ -39,8 +38,8 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
                     autoApproveSubscriptions: values.autoApproveSubscriptions,
                     frontendRedirectUrl: values.frontendRedirectUrl,
                 },
-                // portalDomainConfig: values.portalDomainConfig,
-                // portalUiConfig: values.portalUiConfig,
+                portalDomainConfig: portal.portalDomainConfig,
+                portalUiConfig: portal.portalUiConfig,
             })
 
             message.success('Portal设置保存成功')
@@ -228,35 +227,6 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
 
     const tabItems = [
         {
-            key: 'basic',
-            label: '基本信息',
-            children: (
-                <div className="grid grid-cols-2 gap-6">
-                    <Form.Item
-                        name="name"
-                        label="名称"
-                        rules={[{required: true, message: '请输入Portal ID'}]}
-                    >
-                        <Input placeholder="请输入Portal ID"/>
-                    </Form.Item>
-                    {/* <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入Portal标题' }]}
-          >
-            <Input placeholder="请输入Portal标题" />
-          </Form.Item> */}
-                    <Form.Item
-                        name="description"
-                        label="描述"
-                        className="col-span-2"
-                    >
-                        <Input.TextArea rows={3} placeholder="请输入Portal描述"/>
-                    </Form.Item>
-                </div>
-            )
-        },
-        {
             key: 'auth',
             label: '安全设置',
             children: (
@@ -358,9 +328,6 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
                 form={form}
                 layout="vertical"
                 initialValues={{
-                    name: portal.name,
-                    title: portal.title,
-                    description: portal.description,
                     portalSettingConfig: portal.portalSettingConfig,
                     builtinAuthEnabled: portal.portalSettingConfig?.builtinAuthEnabled,
                     oidcAuthEnabled: portal.portalSettingConfig?.oidcAuthEnabled,
@@ -373,7 +340,7 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
                 <Card>
                     <Tabs
                         items={tabItems}
-                        defaultActiveKey="basic"
+                        defaultActiveKey="auth"
                         type="card"
                     />
                 </Card>

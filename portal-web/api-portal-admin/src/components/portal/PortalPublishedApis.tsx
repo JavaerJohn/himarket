@@ -75,23 +75,26 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
     {
       title: '名称/ID',
       key: 'nameAndId',
+      width: 280,
       render: (_: any, record: ApiProduct) => (
         <div>
-          <div>{record.name}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>ID: {record.productId}</div>
+          <div className="text-sm font-medium text-gray-900 truncate">{record.name}</div>
+          <div className="text-xs text-gray-500 truncate">{record.productId}</div>
         </div>
       ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
+      width: 120,
       render: (text: string) => ProductTypeMap[text] || text
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      width: 400,
     },
     // {
     //   title: '分类',
@@ -101,6 +104,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
     {
       title: '操作',
       key: 'action',
+      width: 180,
       render: (_: any, record: ApiProduct) => (
         <Space size="middle">
           <Button
@@ -139,24 +143,33 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       ),
     },
     {
-      title: '名称/ID',
-      key: 'nameAndId',
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 320,
       render: (_: any, record: ApiProduct) => (
         <div>
-          <div>{record.name}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>ID: {record.productId}</div>
+          <div className="text-sm font-medium text-gray-900 truncate">
+            {record.name}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {record.productId}
+          </div>
         </div>
       ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
+      width: 100,
+      render: (type: string) => ProductTypeMap[type] || type,
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      width: 300,
     },
   ]
 
@@ -240,7 +253,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       </Card>
 
       <Modal
-        title="发布新API"
+        title="发布API产品"
         open={isModalVisible}
         onOk={handlePublish}
         onCancel={handleModalCancel}
@@ -249,9 +262,6 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
         width={800}
         confirmLoading={modalLoading}
       >
-        <div className="mb-4">
-          <p className="text-gray-600">请选择要发布的API产品：</p>
-        </div>
         <Table
           columns={modalColumns}
           dataSource={apiProductsOptions}

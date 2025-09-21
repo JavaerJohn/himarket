@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Table, Tag, Space, Switch, Modal, Form, Input, Select, message, Checkbox } from 'antd'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { Card, Button, Table, Tag, Space, Switch, Modal, Form, Input, Select, message } from 'antd'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined, GlobalOutlined, CheckCircleFilled, MinusCircleFilled } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import type { ApiProduct } from '@/types/api-product';
 import { apiProductApi, portalApi } from '@/lib/api';
@@ -52,7 +52,10 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
         page: currentPage,
         size: pageSize
       })
-      setPublishedPortals(res.data.content || [])
+      setPublishedPortals(res.data.content?.map((item: any) => ({
+        ...item,
+        autoApproveSubscription: item.portalSettingConfig?.autoApproveSubscriptions || false,
+      })) || [])
       setTotal(res.data.totalElements || 0)
     } catch (error) {
       console.error('获取已发布门户失败:', error)
@@ -72,6 +75,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       setAllPortals(res.data.content?.map((item: any) => ({
         ...item,
         portalName: item.name,
+        autoApproveSubscription: item.portalSettingConfig?.autoApproveSubscriptions || false,
       })) || [])
     } catch (error) {
       console.error('获取门户列表失败:', error)
@@ -90,18 +94,44 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
 
   const columns = [
     {
-      title: '门户名称',
-      dataIndex: 'portalName',
-      key: 'portalName',
+      title: '门户信息',
+      key: 'portalInfo',
+      width: 400,
+      render: (_: any, record: Portal) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900 truncate">
+            {record.portalName}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {record.portalId}
+          </div>
+        </div>
+      ),
     },
     {
-      title: '门户ID',
-      dataIndex: 'portalId',
-      key: 'portalId',
+      title: '订阅自动审批',
+      key: 'autoApprove',
+      width: 160,
+      render: (_: any, record: Portal) => (
+        <div className="flex items-center">
+          {record.autoApproveSubscription ? (
+            <>
+              <CheckCircleFilled className="text-green-500 mr-1" style={{fontSize: '10px'}} />
+              <span className="text-xs text-gray-900">已开启</span>
+            </>
+          ) : (
+            <>
+              <MinusCircleFilled className="text-gray-400 mr-1" style={{fontSize: '10px'}} />
+              <span className="text-xs text-gray-900">已关闭</span>
+            </>
+          )}
+        </div>
+      ),
     },
     {
       title: '操作',
       key: 'action',
+      width: 180,
       render: (_: any, record: Portal) => (
         <Space size="middle">
           <Button onClick={() => {
@@ -125,32 +155,38 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
 
   const modalColumns = [
     {
-      title: '选择',
-      dataIndex: 'select',
-      key: 'select',
-      width: 60,
+      title: '门户信息',
+      key: 'portalInfo',
       render: (_: any, record: Portal) => (
-        <Checkbox
-          checked={selectedPortalIds.includes(record.portalId)}
-          onChange={(e) => {
-            if (e.target.checked) {
-              setSelectedPortalIds([...selectedPortalIds, record.portalId])
-            } else {
-              setSelectedPortalIds(selectedPortalIds.filter(id => id !== record.portalId))
-            }
-          }}
-        />
+        <div>
+          <div className="text-xs font-normal text-gray-900 truncate">
+            {record.portalName}
+          </div>
+          <div className="text-xs text-gray-500">
+            {record.portalId}
+          </div>
+        </div>
       ),
     },
     {
-      title: '门户名称',
-      dataIndex: 'portalName',
-      key: 'portalName',
-    },
-    {
-      title: '门户ID',
-      dataIndex: 'portalId',
-      key: 'portalId',
+      title: '订阅自动审批',
+      key: 'autoApprove',
+      width: 140,
+      render: (_: any, record: Portal) => (
+        <div className="flex items-center">
+          {record.autoApproveSubscription ? (
+            <>
+              <CheckCircleFilled className="text-green-500 mr-1" style={{fontSize: '10px'}} />
+              <span className="text-xs text-gray-900">已开启</span>
+            </>
+          ) : (
+            <>
+              <MinusCircleFilled className="text-gray-400 mr-1" style={{fontSize: '10px'}} />
+              <span className="text-xs text-gray-900">已关闭</span>
+            </>
+          )}
+        </div>
+      ),
     },
   ]
 
@@ -252,22 +288,47 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
         onCancel={handleModalCancel}
         okText="发布"
         cancelText="取消"
-        width={800}
+        width={700}
         confirmLoading={modalLoading}
+        destroyOnClose
       >
-        <div className="mb-4">
-          <p className="text-gray-600">请选择要发布到的门户：</p>
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <Table
+            columns={modalColumns}
+            dataSource={allPortals.filter(portal => 
+              !publishedPortals.some(published => published.portalId === portal.portalId)
+            )}
+            rowKey="portalId"
+            loading={portalLoading}
+            pagination={false}
+            scroll={{ y: 350 }}
+            size="middle"
+            className="portal-selection-table"
+            rowSelection={{
+              type: 'checkbox',
+              selectedRowKeys: selectedPortalIds,
+              onChange: (selectedRowKeys) => {
+                setSelectedPortalIds(selectedRowKeys as string[])
+              },
+              columnWidth: 50,
+            }}
+            rowClassName={(record) => 
+              selectedPortalIds.includes(record.portalId) 
+                ? 'bg-blue-50 hover:bg-blue-100' 
+                : 'hover:bg-gray-50'
+            }
+            locale={{
+              emptyText: (
+                <div className="py-8">
+                  <div className="text-gray-400 mb-2">
+                    <GlobalOutlined style={{ fontSize: '24px' }} />
+                  </div>
+                  <div className="text-gray-500 text-sm">暂无可发布的门户</div>
+                </div>
+              )
+            }}
+          />
         </div>
-        <Table
-          columns={modalColumns}
-          dataSource={allPortals.filter(portal => 
-            !publishedPortals.some(published => published.portalId === portal.portalId)
-          )}
-          rowKey="portalId"
-          loading={portalLoading}
-          pagination={false}
-          scroll={{ y: 400 }}
-        />
       </Modal>
     </div>
   )

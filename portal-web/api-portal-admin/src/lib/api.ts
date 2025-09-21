@@ -57,6 +57,10 @@ export const portalApi = {
   getPortals: (params?: { page?: number; size?: number }) => {
     return api.get(`/portals`, { params })
   },
+  // 获取Portal Dashboard URL
+  getPortalDashboard: (portalId: string, type: string = 'Portal') => {
+    return api.get(`/portals/${portalId}/dashboard`, { params: { type } })
+  },
   deletePortal: (portalId: string) => {
     return api.delete(`/portals/${portalId}`)
   },

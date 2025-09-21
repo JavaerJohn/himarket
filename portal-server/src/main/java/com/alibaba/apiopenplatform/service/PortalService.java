@@ -117,4 +117,12 @@ public interface PortalService {
      * @return
      */
     String getDefaultPortal();
+
+    /**
+     * 获取门户的Dashboard监控面板URL
+     *
+     * @param portalId 门户ID
+     * @return Dashboard URL
+     */
+    String getDashboard(String portalId);
 }

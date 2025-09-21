@@ -71,7 +71,7 @@ public abstract class GatewayOperator<T> {
      * @param gateway 网关实体
      * @return 仪表盘访问链接
      */
-    abstract public String getDashboard(Gateway gateway);
+    abstract public String getDashboard(Gateway gateway,String type);
 
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {

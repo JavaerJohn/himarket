@@ -1,26 +1,14 @@
 import { Card, Table, Badge, Button, Space, Avatar, Tag, Input } from 'antd'
 import { SearchOutlined, UserAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useState } from 'react'
-import { Portal } from '@/types'
+import { Portal, DeveloperStats } from '@/types'
 import { formatDateTime } from '@/lib/utils'
 
 interface PortalConsumersProps {
   portal: Portal
 }
 
-interface Consumer {
-  id: string
-  name: string
-  email: string
-  status: string
-  plan: string
-  joinedAt: string
-  lastActive: string
-  apiCalls: number
-  subscriptions: number
-}
-
-const mockConsumers: Consumer[] = [
+const mockConsumers: DeveloperStats[] = [
   {
     id: "1",
     name: "企业A",
@@ -57,7 +45,7 @@ const mockConsumers: Consumer[] = [
 ]
 
 export function PortalConsumers({ portal }: PortalConsumersProps) {
-  const [consumers, setConsumers] = useState<Consumer[]>(mockConsumers)
+  const [consumers, setConsumers] = useState<DeveloperStats[]>(mockConsumers)
   const [searchText, setSearchText] = useState('')
 
   const filteredConsumers = consumers.filter(consumer =>
@@ -96,7 +84,7 @@ export function PortalConsumers({ portal }: PortalConsumersProps) {
       title: '消费者',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string, record: Consumer) => (
+      render: (name: string, record: DeveloperStats) => (
         <div className="flex items-center space-x-3">
           <Avatar className="bg-green-500">
             {name.charAt(0).toUpperCase()}
@@ -153,7 +141,7 @@ export function PortalConsumers({ portal }: PortalConsumersProps) {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: Consumer) => (
+      render: (_: any, record: DeveloperStats) => (
         <Space size="middle">
           <Button type="link" icon={<EditOutlined />}>
             编辑

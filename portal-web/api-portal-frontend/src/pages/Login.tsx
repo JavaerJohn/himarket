@@ -58,7 +58,7 @@ const Login: React.FC = () => {
       });
       // 登录成功后跳转到首页并携带access_token
       if (res && res.data && res.data.access_token) {
-        message.success('登录成功！');
+        message.success('登录成功！', 1);
         localStorage.setItem('access_token', res.data.access_token)
         navigate('/')
       } else {

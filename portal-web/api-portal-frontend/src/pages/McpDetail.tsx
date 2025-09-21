@@ -13,6 +13,7 @@ import {
   Col,
   Collapse,
 } from "antd";
+import { CopyOutlined } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
 import { ProductType } from "../types";
 import type {
@@ -216,7 +217,7 @@ function McpDetail() {
         document.execCommand("copy");
         document.body.removeChild(textarea);
       }
-      message.success("已复制到剪贴板");
+      message.success("已复制到剪贴板", 1);
     } catch {
       message.error("复制失败，请手动复制");
     }
@@ -243,24 +244,25 @@ function McpDetail() {
     );
   }
 
-  const { name, description, status, category, enableConsumerAuth } = data;
+  const { name, description } = data;
   const hasLocalConfig = Boolean(mcpConfig?.mcpServerConfig.rawConfig);
 
 
 
   return (
     <Layout loading={loading}>
-      <ProductHeader
-        name={name}
-        description={description}
-        status={status}
-        category={category}
-        icon={data.icon || "/MCP.png"}
-        defaultIcon="/MCP.png"
-        enableConsumerAuth={enableConsumerAuth || undefined}
-        showConsumerAuth={true}
-        mcpConfig={mcpConfig}
-      />
+      <div className="mb-6">
+        <ProductHeader
+          name={name}
+          description={description}
+          icon={data.icon}
+          defaultIcon="/MCP.svg"
+          mcpConfig={mcpConfig}
+          updatedAt={data.updatedAt}
+          productType="MCP_SERVER"
+        />
+        <hr className="border-gray-200 mt-4" />
+      </div>
 
       {/* 主要内容区域 - 左右布局 */}
       <Row gutter={24}>
@@ -274,8 +276,160 @@ function McpDetail() {
                   key: "overview",
                   label: "Overview",
                   children: data.document ? (
-                    <div className="prose custom-html-style">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.document}</ReactMarkdown>
+                    <div className="min-h-[400px]">
+                      <div 
+                        className="prose prose-lg max-w-none"
+                        style={{
+                          lineHeight: '1.7',
+                          color: '#374151',
+                          fontSize: '16px',
+                          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+                        }}
+                      >
+                        <style>{`
+                          .prose h1 {
+                            color: #111827;
+                            font-weight: 700;
+                            font-size: 2.25rem;
+                            line-height: 1.2;
+                            margin-top: 0;
+                            margin-bottom: 1.5rem;
+                            border-bottom: 2px solid #e5e7eb;
+                            padding-bottom: 0.5rem;
+                          }
+                          .prose h2 {
+                            color: #1f2937;
+                            font-weight: 600;
+                            font-size: 1.875rem;
+                            line-height: 1.3;
+                            margin-top: 2rem;
+                            margin-bottom: 1rem;
+                            border-bottom: 1px solid #e5e7eb;
+                            padding-bottom: 0.25rem;
+                          }
+                          .prose h3 {
+                            color: #374151;
+                            font-weight: 600;
+                            font-size: 1.5rem;
+                            margin-top: 1.5rem;
+                            margin-bottom: 0.75rem;
+                          }
+                          .prose p {
+                            margin-bottom: 1.25rem;
+                            color: #4b5563;
+                            line-height: 1.7;
+                            font-size: 16px;
+                          }
+                          .prose code {
+                            background-color: #f3f4f6;
+                            border: 1px solid #e5e7eb;
+                            border-radius: 0.375rem;
+                            padding: 0.125rem 0.375rem;
+                            font-size: 0.875rem;
+                            color: #374151;
+                            font-weight: 500;
+                          }
+                          .prose pre {
+                            background-color: #1f2937;
+                            border-radius: 0.5rem;
+                            padding: 1.25rem;
+                            overflow-x: auto;
+                            margin: 1.5rem 0;
+                            border: 1px solid #374151;
+                          }
+                          .prose pre code {
+                            background-color: transparent;
+                            border: none;
+                            color: #f9fafb;
+                            padding: 0;
+                            font-size: 0.875rem;
+                            font-weight: normal;
+                          }
+                          .prose blockquote {
+                            border-left: 4px solid #3b82f6;
+                            padding-left: 1rem;
+                            margin: 1.5rem 0;
+                            color: #6b7280;
+                            font-style: italic;
+                            background-color: #f8fafc;
+                            padding: 1rem;
+                            border-radius: 0.375rem;
+                            font-size: 16px;
+                          }
+                          .prose ul, .prose ol {
+                            margin: 1.25rem 0;
+                            padding-left: 1.5rem;
+                          }
+                          .prose ol {
+                            list-style-type: decimal;
+                            list-style-position: outside;
+                          }
+                          .prose ul {
+                            list-style-type: disc;
+                            list-style-position: outside;
+                          }
+                          .prose li {
+                            margin: 0.5rem 0;
+                            color: #4b5563;
+                            display: list-item;
+                            font-size: 16px;
+                          }
+                          .prose ol li {
+                            padding-left: 0.25rem;
+                          }
+                          .prose ul li {
+                            padding-left: 0.25rem;
+                          }
+                          .prose table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 1.5rem 0;
+                            font-size: 16px;
+                          }
+                          .prose th, .prose td {
+                            border: 1px solid #d1d5db;
+                            padding: 0.75rem;
+                            text-align: left;
+                          }
+                          .prose th {
+                            background-color: #f9fafb;
+                            font-weight: 600;
+                            color: #374151;
+                            font-size: 16px;
+                          }
+                          .prose td {
+                            color: #4b5563;
+                            font-size: 16px;
+                          }
+                          .prose a {
+                            color: #3b82f6;
+                            text-decoration: underline;
+                            font-weight: 500;
+                            transition: color 0.2s;
+                            font-size: inherit;
+                          }
+                          .prose a:hover {
+                            color: #1d4ed8;
+                          }
+                          .prose strong {
+                            color: #111827;
+                            font-weight: 600;
+                            font-size: inherit;
+                          }
+                          .prose em {
+                            color: #6b7280;
+                            font-style: italic;
+                            font-size: inherit;
+                          }
+                          .prose hr {
+                            border: none;
+                            height: 1px;
+                            background-color: #e5e7eb;
+                            margin: 2rem 0;
+                          }
+                        `}</style>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.document}</ReactMarkdown>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-gray-500 text-center py-8">
@@ -364,19 +518,16 @@ function McpDetail() {
                       ? [
                           {
                             key: "local",
-                            label: "Local Config",
+                            label: "Stdio",
                             children: (
                               <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
                                 <Button
+                                  type="text"
                                   size="small"
+                                  icon={<CopyOutlined />}
                                   className="absolute top-2 right-2 z-10"
                                   onClick={() => handleCopy(localJson)}
-                                >
-                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
-                                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
-                                  </svg>
-                                </Button>
+                                />
                                 <div className="text-gray-800 font-mono text-xs overflow-x-auto">
                                   <pre className="whitespace-pre-wrap">{localJson}</pre>
                                 </div>
@@ -391,15 +542,12 @@ function McpDetail() {
                             children: (
                               <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
                                 <Button
+                                  type="text"
                                   size="small"
+                                  icon={<CopyOutlined />}
                                   className="absolute top-2 right-2 z-10"
                                   onClick={() => handleCopy(sseJson)}
-                                >
-                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
-                                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
-                                  </svg>
-                                </Button>
+                                />
                                 <div className="text-gray-800 font-mono text-xs overflow-x-auto">
                                   <pre className="whitespace-pre-wrap">{sseJson}</pre>
                                 </div>
@@ -412,15 +560,12 @@ function McpDetail() {
                             children: (
                               <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
                                 <Button
+                                  type="text"
                                   size="small"
+                                  icon={<CopyOutlined />}
                                   className="absolute top-2 right-2 z-10"
                                   onClick={() => handleCopy(httpJson)}
-                                >
-                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
-                                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
-                                  </svg>
-                                </Button>
+                                />
                                 <div className="text-gray-800 font-mono text-xs overflow-x-auto">
                                   <pre className="whitespace-pre-wrap">{httpJson}</pre>
                                 </div>

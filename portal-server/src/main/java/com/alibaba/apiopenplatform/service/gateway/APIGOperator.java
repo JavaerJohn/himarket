@@ -40,6 +40,7 @@ import com.alibaba.apiopenplatform.service.gateway.client.SLSClient;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
+import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.AuthorizationRules;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.ResourceIdentifier;
@@ -354,6 +355,13 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
         } catch (Exception e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof PopClientException
+                    && "DatabaseError.RecordNotFound".equals(((PopClientException) cause).getErrCode())) {
+                log.warn("Consumer authorization rules[{}] not found, ignore", apigAuthConfig.getAuthorizationRuleIds());
+                return;
+            }
+
             log.error("Error deleting Consumer Authorization", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error deleting Consumer Authorization，Cause：" + e.getMessage());
         }
@@ -365,8 +373,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public String getDashboard(Gateway gateway) {
-        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(), true);
+    public String getDashboard(Gateway gateway,String type) {
+        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(),true);
         String ticket = null;
         try {
             CreateTicketResponse response = ticketClient.execute(c -> {
@@ -399,7 +407,16 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching Project,Cause:" + e.getMessage());
         }
         String region = gateway.getApigConfig().getRegion();
-        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/dashboard-1756276497392-966932?slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, region, ticket);
+        String gatewayId = gateway.getGatewayId();
+        String dashboardId = "";
+        if (type.equals("Portal")) {
+            dashboardId = "dashboard-1758009692051-393998";
+        } else if (type.equals("MCP")) {
+            dashboardId = "dashboard-1757483808537-433375";
+        } else if (type.equals("API")) {
+            dashboardId = "dashboard-1756276497392-966932";
+        }
+        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/%s?filters=cluster_id%%253A%%2520%s&slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, dashboardId, gatewayId, region, ticket);        log.info("Dashboard URL: {}", dashboardUrl);
         return dashboardUrl;
     }
 

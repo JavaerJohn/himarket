@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Spin, Alert, Button, Space } from 'antd';
+import { Card, Spin, Button, Space } from 'antd';
 import { ReloadOutlined, DashboardOutlined } from '@ant-design/icons';
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct } from '@/types/api-product';
@@ -12,6 +12,7 @@ export const ApiProductDashboard: React.FC<ApiProductDashboardProps> = ({ apiPro
   const [dashboardUrl, setDashboardUrl] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [fallback, setFallback] = useState<boolean>(false);
 
   // 获取Dashboard URL
   const fetchDashboardUrl = async () => {
@@ -23,9 +24,14 @@ export const ApiProductDashboard: React.FC<ApiProductDashboardProps> = ({ apiPro
     try {
       // 直接调用产品的dashboard接口获取监控面板URL
       const response = await apiProductApi.getProductDashboard(apiProduct.productId);
-      setDashboardUrl(response.data);
+      if (!response?.data) {
+        setFallback(true);
+      } else {
+        setDashboardUrl(response.data);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || '获取监控面板失败');
+      setError(err?.response?.data?.message || '获取监控面板失败');
+      setFallback(true);
     } finally {
       setLoading(false);
     }
@@ -49,33 +55,15 @@ export const ApiProductDashboard: React.FC<ApiProductDashboardProps> = ({ apiPro
     );
   }
 
-  if (error) {
+  if (fallback || !dashboardUrl || error) {
     return (
       <div className="p-6">
-        <Alert
-          message="获取监控面板失败"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={handleRefresh}>
-              重试
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
-
-  if (!dashboardUrl) {
-    return (
-      <div className="p-6">
-        <Alert
-          message="暂无监控数据"
-          description="该产品尚未配置监控面板，请联系管理员配置。"
-          type="info"
-          showIcon
-        />
+        <div className="w-full h-[600px] flex items-center justify-center text-gray-500">
+          Dashboard 发布中，敬请期待
+        </div>
+        <div className="mt-4 text-right">
+          <Button onClick={handleRefresh} loading={loading}>刷新</Button>
+        </div>
       </div>
     );
   }
@@ -113,6 +101,7 @@ export const ApiProductDashboard: React.FC<ApiProductDashboardProps> = ({ apiPro
               title={`${apiProduct.name} Dashboard`}
               className="w-full h-full border-0"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+              onError={() => setFallback(true)}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">

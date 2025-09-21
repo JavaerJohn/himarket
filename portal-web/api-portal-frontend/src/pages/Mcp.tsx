@@ -3,8 +3,8 @@ import { Card, Tag, Typography, Input, Avatar, Skeleton } from "antd";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import api from "../lib/api";
-import { ProductType, ProductStatus } from "../types";
-import type { Product, ApiResponse, PaginatedResponse } from "../types";
+import { ProductStatus } from "../types";
+import type { Product, ApiResponse, PaginatedResponse, ProductIcon } from "../types";
 // import { getCategoryText, getCategoryColor } from "../lib/statusUtils";
 
 const { Title, Paragraph } = Typography;
@@ -19,7 +19,7 @@ interface McpServer {
   endpoints: number;
   category: string;
   creator: string;
-  icon?: string;
+  icon?: ProductIcon;
   mcpConfig?: any;
   updatedAt: string;
 }
@@ -32,34 +32,43 @@ function McpPage() {
   useEffect(() => {
     fetchMcpServers();
   }, []);
-  const revertIcon = (icon: string) => {
-    const startIndex = icon.indexOf("value=") + 6;
-    const endIndex = icon.length - 1;
-    const URL = icon.substring(startIndex, endIndex).trim();
-    return URL;
-  }
+  // 处理产品图标的函数
+  const getIconUrl = (icon?: ProductIcon | null): string => {
+    const fallback = "/MCP.svg";
+    
+    if (!icon) {
+      return fallback;
+    }
+    
+    switch (icon.type) {
+      case "URL":
+        return icon.value || fallback;
+      case "BASE64":
+        // 如果value已经包含data URL前缀，直接使用；否则添加前缀
+        return icon.value ? (icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`) : fallback;
+      default:
+        return fallback;
+    }
+  };
   const fetchMcpServers = async () => {
     setLoading(true);
     try {
       const response: ApiResponse<PaginatedResponse<Product>> = await api.get("/products?type=MCP_SERVER&page=0&size=100");
       if (response.code === "SUCCESS" && response.data) {
-        const mapped = response.data.content
-          .filter((item: Product) => item.type === ProductType.MCP_SERVER)
-          .map((item: Product) => {
-            return {
-              key: item.productId,
-              name: item.name,
-              description: item.description,
-              status: item.status === ProductStatus.ENABLE ? 'active' : 'inactive',
-              version: 'v1.0.0',
-              endpoints: 0,
-              category: item.category,
-              creator: 'Unknown', // Product类型中没有creator属性，使用默认值
-              icon: item.icon || undefined,
-              mcpConfig: item.mcpConfig,
-              updatedAt: item.updatedAt?.slice(0, 10) || ''
-            };
-          });
+        // 移除重复过滤，简化数据映射
+        const mapped = response.data.content.map((item: Product) => ({
+          key: item.productId,
+          name: item.name,
+          description: item.description,
+          status: item.status === ProductStatus.ENABLE ? 'active' : 'inactive',
+          version: 'v1.0.0',
+          endpoints: 0,
+          category: item.category,
+          creator: 'Unknown',
+          icon: item.icon || undefined,
+          mcpConfig: item.mcpConfig,
+          updatedAt: item.updatedAt?.slice(0, 10) || ''
+        }));
         setMcpServers(mapped);
       }
     } catch (error) {
@@ -140,7 +149,7 @@ function McpPage() {
                 {server.icon ? (
                   <Avatar
                     size={48}
-                    src={revertIcon(server.icon)}
+                    src={getIconUrl(server.icon)}
                   />
                 ) : (
                   <Avatar
@@ -158,7 +167,7 @@ function McpPage() {
                     <Title level={5} className="mb-0 truncate">
                       {server.name}
                     </Title>
-                    <Tag color="green" className="text-xs">
+                    <Tag className="text-xs text-green-700 border-0 bg-transparent px-0">
                       {server.mcpConfig?.mcpServerConfig?.transportMode || 'remote'}
                     </Tag>
                   </div>

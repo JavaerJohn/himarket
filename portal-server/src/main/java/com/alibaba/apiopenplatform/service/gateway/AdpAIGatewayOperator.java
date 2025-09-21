@@ -332,7 +332,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     }
 
     @Override
-    public String getDashboard(Gateway gateway) {
+    public String getDashboard(Gateway gateway,String type) {
         return null;
     }
 

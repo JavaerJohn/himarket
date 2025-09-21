@@ -1,10 +1,12 @@
-import {Card, Row, Col, Statistic} from 'antd'
+import {Card, Row, Col, Statistic, Button, message} from 'antd'
 import {
     UserOutlined,
     ApiOutlined,
     LinkOutlined,
     CheckCircleFilled,
-    MinusCircleFilled
+    MinusCircleFilled,
+    EditOutlined,
+    CopyOutlined
 } from '@ant-design/icons'
 import {Portal} from '@/types'
 import {useState, useEffect} from 'react'
@@ -13,22 +15,10 @@ import {useNavigate} from 'react-router-dom'
 
 interface PortalOverviewProps {
     portal: Portal
+    onEdit?: () => void
 }
 
-const StatusIndicator = ({enabled}: {enabled: boolean}) => (
-    <div className="flex items-center">
-        {enabled ? (
-            <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '12px'}} />
-        ) : (
-            <MinusCircleFilled className="text-gray-500 mr-2" style={{fontSize: '12px'}} />
-        )}
-        <span className="text-gray-700">
-            {enabled ? '已启用' : '已停用'}
-        </span>
-    </div>
-)
-
-export function PortalOverview({portal}: PortalOverviewProps) {
+export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
     const navigate = useNavigate()
     const [apiCount, setApiCount] = useState(0)
     const [developerCount, setDeveloperCount] = useState(0)
@@ -56,84 +46,137 @@ export function PortalOverview({portal}: PortalOverviewProps) {
         <div className="p-6 space-y-6">
             <div>
                 <h1 className="text-2xl font-bold mb-2">概览</h1>
-                <p className="text-gray-600">Portal的基本信息和统计数据</p>
+                <p className="text-gray-600">Portal概览</p>
             </div>
 
-            {/* 统计卡片 */}
+            {/* 基本信息 */}
+            <Card 
+                title="基本信息"
+                extra={
+                    onEdit && (
+                        <Button 
+                            type="primary" 
+                            icon={<EditOutlined />} 
+                            onClick={onEdit}
+                        >
+                            编辑
+                        </Button>
+                    )
+                }
+            >
+                <div>
+                    <div className="grid grid-cols-6 gap-8 items-center pt-0 pb-2">
+                        <span className="text-xs text-gray-600">Portal名称:</span>
+                        <span className="col-span-2 text-xs text-gray-900">{portal.name}</span>
+                        <span className="text-xs text-gray-600">Portal ID:</span>
+                        <div className="col-span-2 flex items-center gap-2">
+                            <span className="text-xs text-gray-700">{portal.portalId}</span>
+                            <Button 
+                                type="text" 
+                                size="small"
+                                icon={<CopyOutlined />}
+                                onClick={() => {
+                                    navigator.clipboard.writeText(portal.portalId);
+                                    message.success('Portal ID已复制');
+                                }}
+                                className="h-auto p-1 min-w-0"
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                        <span className="text-xs text-gray-600">域名:</span>
+                        <div className="col-span-2 flex items-center gap-2">
+                            <LinkOutlined className="text-blue-500" />
+                            <a 
+                                href={`http://${portal.portalDomainConfig?.[0]?.domain}`} 
+                                target="_blank"
+                                rel="noopener noreferrer" 
+                                className="text-xs text-blue-600 hover:underline"
+                            >
+                                {portal.portalDomainConfig?.[0]?.domain}
+                            </a>
+                        </div>
+                        <span className="text-xs text-gray-600">账号密码登录:</span>
+                        <div className="col-span-2 flex items-center">
+                            {portal.portalSettingConfig?.builtinAuthEnabled ? (
+                                <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '10px'}} />
+                            ) : (
+                                <MinusCircleFilled className="text-gray-400 mr-2" style={{fontSize: '10px'}} />
+                            )}
+                            <span className="text-xs text-gray-900">
+                                {portal.portalSettingConfig?.builtinAuthEnabled ? '已启用' : '已停用'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                        <span className="text-xs text-gray-600">开发者自动审批:</span>
+                        <div className="col-span-2 flex items-center">
+                            {portal.portalSettingConfig?.autoApproveDevelopers ? (
+                                <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '10px'}} />
+                            ) : (
+                                <MinusCircleFilled className="text-gray-400 mr-2" style={{fontSize: '10px'}} />
+                            )}
+                            <span className="text-xs text-gray-900">
+                                {portal.portalSettingConfig?.autoApproveDevelopers ? '已启用' : '已停用'}
+                            </span>
+                        </div>
+                        <span className="text-xs text-gray-600">订阅自动审批:</span>
+                        <div className="col-span-2 flex items-center">
+                            {portal.portalSettingConfig?.autoApproveSubscriptions ? (
+                                <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '10px'}} />
+                            ) : (
+                                <MinusCircleFilled className="text-gray-400 mr-2" style={{fontSize: '10px'}} />
+                            )}
+                            <span className="text-xs text-gray-900">
+                                {portal.portalSettingConfig?.autoApproveSubscriptions ? '已启用' : '已停用'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-6 gap-8 items-start pt-2 pb-2">
+                        <span className="text-xs text-gray-600">描述:</span>
+                        <span className="col-span-5 text-xs text-gray-900 leading-relaxed">
+                            {portal.description || '-'}
+                        </span>
+                    </div>
+                </div>
+            </Card>
+
+            {/* 统计数据 */}
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={12}>
-                    <Card onClick={() => {
-                        navigate(`/portals/detail?id=${portal.portalId}&tab=developers`)
-                    }}>
+                    <Card 
+                        className="cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => {
+                            navigate(`/portals/detail?id=${portal.portalId}&tab=developers`)
+                        }}
+                    >
                         <Statistic
                             title="注册开发者"
                             value={developerCount}
-                            prefix={<UserOutlined/>}
-                            valueStyle={{color: '#1890ff'}}
+                            prefix={<UserOutlined className="text-blue-500" />}
+                            valueStyle={{ color: '#1677ff', fontSize: '24px' }}
                         />
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={12}>
-                    <Card onClick={() => {
-                        navigate(`/portals/detail?id=${portal.portalId}&tab=published-apis`)
-                    }}>
+                    <Card 
+                        className="cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => {
+                            navigate(`/portals/detail?id=${portal.portalId}&tab=published-apis`)
+                        }}
+                    >
                         <Statistic
                             title="已发布的API"
                             value={apiCount}
-                            prefix={<ApiOutlined/>}
-                            valueStyle={{color: '#722ed1'}}
+                            prefix={<ApiOutlined className="text-blue-500" />}
+                            valueStyle={{ color: '#1677ff', fontSize: '24px' }}
                         />
                     </Card>
                 </Col>
-
             </Row>
-
-            {/* 详细信息 */}
-            <Row gutter={[16, 16]}>
-                <Col xs={24} lg={24}>
-                    <Card title="基本信息" className="h-full">
-                        <div className="space-y-4">
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Portal名称</span>
-                                <span className="font-medium">{portal.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Portal ID</span>
-                                <span className="font-medium">{portal.portalId}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">域名</span>
-                                <div className="flex items-center gap-2">
-                                    <LinkOutlined/>
-                                    <a href={`http://${portal.portalDomainConfig?.[0]?.domain}`} target="_blank"
-                                       rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                        {portal.portalDomainConfig?.[0]?.domain}
-                                    </a>
-                                </div>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">账号密码登录</span>
-                                <StatusIndicator enabled={portal.portalSettingConfig?.builtinAuthEnabled || false} />
-                            </div>
-                            {/* <div className="flex justify-between">
-                <span className="text-gray-600">OIDC认证</span>
-                <Tag color={portal.portalSettingConfig?.oidcAuthEnabled ? "green" : "default"}>
-                  {portal.portalSettingConfig?.oidcAuthEnabled ? "已启用" : "已停用"}
-                </Tag>
-              </div> */}
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">开发者自动审批</span>
-                                <StatusIndicator enabled={portal.portalSettingConfig?.autoApproveDevelopers || false} />
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">订阅自动审批</span>
-                                <StatusIndicator enabled={portal.portalSettingConfig?.autoApproveSubscriptions || false} />
-                            </div>
-                        </div>
-                    </Card>
-                </Col>
-            </Row>
-
         </div>
     )
 } 

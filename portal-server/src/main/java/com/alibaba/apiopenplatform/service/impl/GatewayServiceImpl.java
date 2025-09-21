@@ -240,8 +240,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public String getDashboard(String gatewayId) {
+    public String getDashboard(String gatewayId,String type) {
         Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).getDashboard(gateway);
+        return getOperator(gateway).getDashboard(gateway,type); //type: Portal,MCP,API
     }
 }

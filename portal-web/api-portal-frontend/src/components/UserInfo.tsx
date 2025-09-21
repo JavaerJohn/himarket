@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Button, Avatar, Dropdown, Skeleton } from "antd";
+import { Button, Avatar, Dropdown, Skeleton, message } from "antd";
 import { UserOutlined, LogoutOutlined, AppstoreOutlined } from "@ant-design/icons";
-import api from "../lib/api";
+import api, { developerLogout } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
 interface UserInfo {
@@ -30,14 +30,15 @@ export function UserInfo() {
       return;
     }
 
-    // 如果正在加载中，等待加载完成
+    // 如果正在加载中，等待加载完成 - 优化轮询逻辑
     if (globalLoading) {
       const checkLoading = () => {
         if (!globalLoading && mounted.current) {
           setUserInfo(globalUserInfo);
           setLoading(false);
-        } else if (globalLoading) {
-          setTimeout(checkLoading, 100);
+        } else if (globalLoading && mounted.current) {
+          // 使用requestAnimationFrame替代setTimeout提升性能
+          requestAnimationFrame(checkLoading);
         }
       };
       checkLoading();
@@ -78,12 +79,25 @@ export function UserInfo() {
     };
   }, []);
 
-  const handleLogout = () => {
-    // 清除用户信息并跳转到登录页
-    globalUserInfo = null;
-    globalLoading = false;
-    setUserInfo(null);
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      // 调用后端logout接口，使token失效
+      await developerLogout();
+    } catch (error) {
+      // 即使接口调用失败，也要清除本地token，避免用户被卡住
+      console.error('退出登录接口调用失败:', error);
+    } finally {
+      // 清除localStorage中的token
+      localStorage.removeItem('access_token');
+      // 清除全局用户信息
+      globalUserInfo = null;
+      globalLoading = false;
+      setUserInfo(null);
+      // 显示成功消息
+      message.success('退出登录成功', 1);
+      // 跳转到登录页
+      navigate('/login');
+    }
   };
 
   const menuItems = [

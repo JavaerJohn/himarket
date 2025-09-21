@@ -1,24 +1,28 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Dropdown, MenuProps, Typography, Spin, Modal, message } from 'antd'
-import { 
-  LinkOutlined,
+import {
   MoreOutlined,
   LeftOutlined,
-  GlobalOutlined,
-  FileTextOutlined,
+  EyeOutlined,
+  ApiOutlined,
   TeamOutlined,
-  SettingOutlined
+  SafetyOutlined,
+  CloudOutlined,
+  DashboardOutlined
 } from '@ant-design/icons'
 import { PortalOverview } from '@/components/portal/PortalOverview'
 import { PortalPublishedApis } from '@/components/portal/PortalPublishedApis'
 import { PortalDevelopers } from '@/components/portal/PortalDevelopers'
 import { PortalConsumers } from '@/components/portal/PortalConsumers'
-import { PortalSettings } from '@/components/portal/PortalSettings'
+import { PortalDashboard } from '@/components/portal/PortalDashboard'
+import { PortalSecurity } from '@/components/portal/PortalSecurity'
+import { PortalDomain } from '@/components/portal/PortalDomain'
+import PortalFormModal from '@/components/portal/PortalFormModal'
 import { portalApi } from '@/lib/api'
 import { Portal } from '@/types'
 
-const { Title, Paragraph } = Typography
+const { Title } = Typography
 
 // 移除mockPortal，使用真实API数据
 
@@ -26,13 +30,13 @@ const menuItems = [
   {
     key: "overview",
     label: "Overview",
-    icon: GlobalOutlined,
+    icon: EyeOutlined,
     description: "Portal概览"
   },
   {
     key: "published-apis",
-    label: "Published API Products",
-    icon: FileTextOutlined,
+    label: "Products",
+    icon: ApiOutlined,
     description: "已发布的API产品"
   },
   {
@@ -41,6 +45,18 @@ const menuItems = [
     icon: TeamOutlined,
     description: "开发者管理"
   },
+  {
+    key: "security",
+    label: "Security",
+    icon: SafetyOutlined,
+    description: "安全设置"
+  },
+  {
+    key: "domain",
+    label: "Domain",
+    icon: CloudOutlined,
+    description: "域名管理"
+  },
   // {
   //   key: "consumers",
   //   label: "Consumers",
@@ -48,10 +64,10 @@ const menuItems = [
   //   description: "消费者管理"
   // },
   {
-    key: "settings",
-    label: "Settings",
-    icon: SettingOutlined,
-    description: "门户设置"
+    key: "dashboard",
+    label: "Dashboard",
+    icon: DashboardOutlined,
+    description: "监控面板"
   }
 ]
 
@@ -61,6 +77,7 @@ export default function PortalDetail() {
   const [portal, setPortal] = useState<Portal | null>(null)
   const [loading, setLoading] = useState(true) // 初始状态为 loading
   const [error, setError] = useState<string | null>(null)
+  const [editModalVisible, setEditModalVisible] = useState(false)
 
   // 从URL查询参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview'
@@ -105,22 +122,39 @@ export default function PortalDetail() {
     setSearchParams(newSearchParams)
   }
 
+  const handleEdit = () => {
+    setEditModalVisible(true)
+  }
+
+  const handleEditSuccess = () => {
+    setEditModalVisible(false)
+    fetchPortalData()
+  }
+
+  const handleEditCancel = () => {
+    setEditModalVisible(false)
+  }
+
   const renderContent = () => {
     if (!portal) return null
     
     switch (activeTab) {
       case "overview":
-        return <PortalOverview portal={portal} />
+        return <PortalOverview portal={portal} onEdit={handleEdit} />
       case "published-apis":
         return <PortalPublishedApis portal={portal} />
       case "developers":
         return <PortalDevelopers portal={portal} />
+      case "security":
+        return <PortalSecurity portal={portal} onRefresh={fetchPortalData} />
+      case "domain":
+        return <PortalDomain portal={portal} onRefresh={fetchPortalData} />
       case "consumers":
         return <PortalConsumers portal={portal} />
-      case "settings":
-        return <PortalSettings portal={portal} onRefresh={fetchPortalData} />
+      case "dashboard":
+        return <PortalDashboard portal={portal} />
       default:
-        return <PortalOverview portal={portal} />
+        return <PortalOverview portal={portal} onEdit={handleEdit} />
     }
   }
 
@@ -175,29 +209,17 @@ export default function PortalDetail() {
             onClick={handleBackToPortals}
             icon={<LeftOutlined />}
           >
-            返回 Portal 列表
+            返回
           </Button>
         </div>
 
         {/* Portal 信息 */}
         <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <Title level={5} className="mb-0">{portal.name}</Title>
             <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
               <Button type="text" icon={<MoreOutlined />} size="small" />
             </Dropdown>
-          </div>
-          <Paragraph className="text-gray-600 mb-3" ellipsis={{ rows: 1, tooltip: portal.name }}>{portal.description}</Paragraph>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <LinkOutlined className="h-3 w-3" />
-            <a 
-              href={`http://${portal.portalDomainConfig?.[0]?.domain}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:underline truncate text-blue-600"
-            >
-              {portal.portalDomainConfig?.[0]?.domain}
-            </a>
           </div>
         </div>
 
@@ -230,6 +252,15 @@ export default function PortalDetail() {
       <div className="flex-1 overflow-auto">
       {renderContent()}
       </div>
+
+      {portal && (
+        <PortalFormModal
+          visible={editModalVisible}
+          onCancel={handleEditCancel}
+          onSuccess={handleEditSuccess}
+          portal={portal}
+        />
+      )}
     </div>
   )
 } 
