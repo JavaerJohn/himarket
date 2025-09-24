@@ -193,6 +193,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     public String createConsumer(Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
         APIGClient client = new APIGClient(config.getApigConfig());
 
+        String mark = consumer.getConsumerId().substring(Math.max(0, consumer.getConsumerId().length() - 8));
+        String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
         try {
             // ApiKey
             ApiKeyIdentityConfig apikeyIdentityConfig = convertToApiKeyIdentityConfig(credential.getApiKeyConfig());
@@ -200,9 +202,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             // Hmac
             List<AkSkIdentityConfig> akSkIdentityConfigs = convertToAkSkIdentityConfigs(credential.getHmacConfig());
 
-            String mark = consumer.getConsumerId().substring(Math.max(0, consumer.getConsumerId().length() - 8));
             CreateConsumerRequest.Builder builder = CreateConsumerRequest.builder()
-                    .name(StrUtil.format("{}-{}", consumer.getName(), mark))
+                    .name(gwConsumerName)
                     .description("Created by HiMarket")
                     .gatewayType(config.getGatewayType().getType())
                     .enable(true);
@@ -222,10 +223,45 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
             return response.getBody().getData().getConsumerId();
         } catch (Exception e) {
+            Throwable cause = e.getCause();
+            // Consumer已经存在
+            if (cause instanceof PopClientException && "Conflict.ConsumerNameDuplicate".equals(((PopClientException) cause).getErrCode())) {
+                return retrievalConsumer(gwConsumerName, config);
+            }
             log.error("Error creating Consumer", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error creating Consumer，Cause：" + e.getMessage());
         }
+    }
 
+    private String retrievalConsumer(String name, GatewayConfig gatewayConfig) {
+        APIGClient client = new APIGClient(gatewayConfig.getApigConfig());
+
+        try {
+            CompletableFuture<ListConsumersResponse> f = client.execute(c -> {
+                ListConsumersRequest request = ListConsumersRequest.builder()
+                        .gatewayType(gatewayConfig.getGatewayType().getType())
+                        .nameLike(name)
+                        .pageNumber(1)
+                        .pageSize(10)
+                        .build();
+
+                return c.listConsumers(request);
+            });
+            ListConsumersResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            for (ListConsumersResponseBody.Items item : response.getBody().getData().getItems()) {
+                if (StrUtil.equals(item.getName(), name)) {
+                    return item.getConsumerId();
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error fetching Consumer", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching Consumer，Cause：" + e.getMessage());
+        }
+        return null;
     }
 
     @Override
@@ -373,8 +409,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public String getDashboard(Gateway gateway,String type) {
-        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(),true);
+    public String getDashboard(Gateway gateway, String type) {
+        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(), true);
         String ticket = null;
         try {
             CreateTicketResponse response = ticketClient.execute(c -> {
@@ -416,7 +452,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         } else if (type.equals("API")) {
             dashboardId = "dashboard-1756276497392-966932";
         }
-        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/%s?filters=cluster_id%%253A%%2520%s&slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, dashboardId, gatewayId, region, ticket);        log.info("Dashboard URL: {}", dashboardUrl);
+        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/%s?filters=cluster_id%%253A%%2520%s&slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, dashboardId, gatewayId, region, ticket);
+        log.info("Dashboard URL: {}", dashboardUrl);
         return dashboardUrl;
     }
 

@@ -120,7 +120,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
         // mcpServer config
         MCPConfigResult.MCPServerConfig c = new MCPConfigResult.MCPServerConfig();
-        c.setPath("/" + higressMCPConfig.getName());
+        c.setPath("/mcp-servers/" + higressMCPConfig.getName());
         c.setDomains(higressMCPConfig.getDomains().stream().map(domain -> MCPConfigResult.Domain.builder()
                         .domain(domain)
                         .protocol("https")
