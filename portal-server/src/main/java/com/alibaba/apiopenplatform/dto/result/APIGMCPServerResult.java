@@ -19,23 +19,18 @@
 
 package com.alibaba.apiopenplatform.dto.result;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
-import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
-import com.aliyun.sdk.service.apig20240327.models.HttpRouteMatch;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class APIGMCPServerResult extends GatewayMCPServerResult implements OutputConverter<APIGMCPServerResult, HttpRoute> {
 
     private String apiId;
+
+    private String mcpServerId;
 
     private String mcpRouteId;
 

@@ -11,6 +11,7 @@ import {
 import {Portal} from '@/types'
 import {useState, useEffect} from 'react'
 import {portalApi, apiProductApi} from '@/lib/api'
+import {copyToClipboard} from '@/lib/utils'
 import {useNavigate} from 'react-router-dom'
 
 interface PortalOverviewProps {
@@ -75,9 +76,13 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                                 type="text" 
                                 size="small"
                                 icon={<CopyOutlined />}
-                                onClick={() => {
-                                    navigator.clipboard.writeText(portal.portalId);
-                                    message.success('Portal ID已复制');
+                                onClick={async () => {
+                                    try {
+                                        await copyToClipboard(portal.portalId);
+                                        message.success('Portal ID已复制');
+                                    } catch {
+                                        message.error('复制失败，请手动复制');
+                                    }
                                 }}
                                 className="h-auto p-1 min-w-0"
                             />

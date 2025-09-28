@@ -2,7 +2,6 @@ package com.alibaba.apiopenplatform.service.gateway;
 
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.dto.result.AdpGatewayInstanceResult;
@@ -178,7 +177,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         // 设置元数据
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.ADP_AI_GATEWAY.name());
-        meta.setFromType(data.getType());
+        meta.setCreateFromType(data.getType());
         mcpConfig.setMeta(meta);
 
         return JSONUtil.toJsonStr(mcpConfig);

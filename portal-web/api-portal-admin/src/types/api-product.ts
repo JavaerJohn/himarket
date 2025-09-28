@@ -20,6 +20,7 @@ export interface ApiProductMcpConfig {
     mcpServerName: string;
     mcpServerConfig: any;
     fromType: string;
+    protocol?: string;
   }
   mcpServerConfig: {
     path: string;
@@ -50,8 +51,11 @@ export interface NacosMCPItem {
 
 export interface APIGAIMCPItem {
   mcpServerName: string;
-  fromGatewayType: 'ADP_AI_GATEWAY';
+  fromGatewayType: 'APIG_AI' | 'ADP_AI_GATEWAY';
   mcpRouteId: string;
+  mcpServerId?: string;
+  apiId?: string;
+  type?: string;
 }
 
 export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem;

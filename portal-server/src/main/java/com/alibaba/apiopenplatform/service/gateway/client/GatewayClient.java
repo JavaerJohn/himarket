@@ -19,9 +19,25 @@
 
 package com.alibaba.apiopenplatform.service.gateway.client;
 
+import java.net.InetSocketAddress;
+import java.net.Socket;
+
 public abstract class GatewayClient {
 
     public void close() {
 
+    }
+
+    protected String getAPIGEndpoint(String region) {
+        String internalEndpoint = String.format("apig-vpc.%s.aliyuncs.com", region);
+        String publicEndpoint = String.format("apig.%s.aliyuncs.com", region);
+
+        // 优先尝试内网endpoint
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(internalEndpoint, 443), 1000); // 1秒超时
+            return internalEndpoint;
+        } catch (Exception e) {
+            return publicEndpoint;
+        }
     }
 }

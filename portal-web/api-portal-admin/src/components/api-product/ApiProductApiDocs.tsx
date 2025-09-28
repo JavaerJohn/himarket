@@ -70,7 +70,8 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
     domains: Array<{ domain: string; protocol: string }> | null | undefined,
     path: string | null | undefined,
     serverName: string,
-    localConfig?: unknown
+    localConfig?: unknown,
+    protocolType?: string
   ) => {
     // 互斥：优先判断本地模式
     if (localConfig) {
@@ -87,7 +88,36 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
       const baseUrl = `${domain.protocol}://${domain.domain}`;
       const endpoint = `${baseUrl}${path}`;
 
-      const httpConfig = `{
+      if (protocolType === 'SSE') {
+        // 仅生成SSE配置，不追加/sse
+        const sseConfig = `{
+  "mcpServers": {
+    "${serverName}": {
+      "type": "sse",
+      "url": "${endpoint}"
+    }
+  }
+}`;
+        setSseJson(sseConfig);
+        setHttpJson("");
+        setLocalJson("");
+        return;
+      } else if (protocolType === 'StreamableHTTP') {
+        // 仅生成HTTP配置
+        const httpConfig = `{
+  "mcpServers": {
+    "${serverName}": {
+      "url": "${endpoint}"
+    }
+  }
+}`;
+        setHttpJson(httpConfig);
+        setSseJson("");
+        setLocalJson("");
+        return;
+      } else {
+        // protocol为null或其他值：生成两种配置
+        const httpConfig = `{
   "mcpServers": {
     "${serverName}": {
       "url": "${endpoint}"
@@ -95,7 +125,7 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
   }
 }`;
 
-      const sseConfig = `{
+        const sseConfig = `{
   "mcpServers": {
     "${serverName}": {
       "type": "sse",
@@ -104,10 +134,11 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
   }
 }`;
 
-      setHttpJson(httpConfig);
-      setSseJson(sseConfig);
-      setLocalJson("");
-      return;
+        setHttpJson(httpConfig);
+        setSseJson(sseConfig);
+        setLocalJson("");
+        return;
+      }
     }
 
     // 无有效配置
@@ -116,12 +147,6 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
     setLocalJson("");
   };
 
-  // 复制到剪贴板
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      // 可以添加成功提示
-    });
-  };
 
   useEffect(() => {
     // 设置源码内容
@@ -239,7 +264,8 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
           apiProduct.mcpConfig.mcpServerConfig?.domains,
           apiProduct.mcpConfig.mcpServerConfig?.path,
           apiProduct.mcpConfig.mcpServerName,
-          apiProduct.mcpConfig.mcpServerConfig?.rawConfig
+          apiProduct.mcpConfig.mcpServerConfig?.rawConfig,
+          apiProduct.mcpConfig.meta?.protocol
         );
       } catch {
         setMcpParsed({});
@@ -539,50 +565,54 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
                       />
                     </div>
                   ) : (
-                    // HTTP/SSE Mode - 显示HTTP和SSE配置
+                    // HTTP/SSE Mode - 根据配置状态动态显示
                     <>
-                      <div className="mt-4">
-                        <h3 className="text-lg font-bold mb-2">HTTP Config</h3>
-                        <MonacoEditor
-                          language="json"
-                          theme="vs-light"
-                          value={httpJson}
-                          options={{
-                            readOnly: true,
-                            minimap: { enabled: true },
-                            scrollBeyondLastLine: false,
-                            scrollbar: { vertical: "visible", horizontal: "visible" },
-                            wordWrap: "off",
-                            lineNumbers: "on",
-                            automaticLayout: true,
-                            fontSize: 14,
-                            copyWithSyntaxHighlighting: true,
-                            contextmenu: true,
-                          }}
-                          height="150px"
-                        />
-                      </div>
-                      <div className="mt-4">
-                        <h3 className="text-lg font-bold mb-2">SSE Config</h3>
-                        <MonacoEditor
-                          language="json"
-                          theme="vs-light"
-                          value={sseJson}
-                          options={{
-                            readOnly: true,
-                            minimap: { enabled: true },
-                            scrollBeyondLastLine: false,
-                            scrollbar: { vertical: "visible", horizontal: "visible" },
-                            wordWrap: "off",
-                            lineNumbers: "on",
-                            automaticLayout: true,
-                            fontSize: 14,
-                            copyWithSyntaxHighlighting: true,
-                            contextmenu: true,
-                          }}
-                          height="150px"
-                        />
-                      </div>
+                      {httpJson && (
+                        <div className="mt-4">
+                          <h3 className="text-lg font-bold mb-2">HTTP Config</h3>
+                          <MonacoEditor
+                            language="json"
+                            theme="vs-light"
+                            value={httpJson}
+                            options={{
+                              readOnly: true,
+                              minimap: { enabled: true },
+                              scrollBeyondLastLine: false,
+                              scrollbar: { vertical: "visible", horizontal: "visible" },
+                              wordWrap: "off",
+                              lineNumbers: "on",
+                              automaticLayout: true,
+                              fontSize: 14,
+                              copyWithSyntaxHighlighting: true,
+                              contextmenu: true,
+                            }}
+                            height="150px"
+                          />
+                        </div>
+                      )}
+                      {sseJson && (
+                        <div className="mt-4">
+                          <h3 className="text-lg font-bold mb-2">SSE Config</h3>
+                          <MonacoEditor
+                            language="json"
+                            theme="vs-light"
+                            value={sseJson}
+                            options={{
+                              readOnly: true,
+                              minimap: { enabled: true },
+                              scrollBeyondLastLine: false,
+                              scrollbar: { vertical: "visible", horizontal: "visible" },
+                              wordWrap: "off",
+                              lineNumbers: "on",
+                              automaticLayout: true,
+                              fontSize: 14,
+                              copyWithSyntaxHighlighting: true,
+                              contextmenu: true,
+                            }}
+                            height="150px"
+                          />
+                        </div>
+                      )}
                     </>
                   )}
                 </div>

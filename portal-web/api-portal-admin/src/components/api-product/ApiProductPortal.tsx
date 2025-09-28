@@ -54,7 +54,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       })
       setPublishedPortals(res.data.content?.map((item: any) => ({
         ...item,
-        autoApproveSubscription: item.portalSettingConfig?.autoApproveSubscriptions || false,
+        autoApproveSubscription: item.autoApproveSubscriptions || false,
       })) || [])
       setTotal(res.data.totalElements || 0)
     } catch (error) {

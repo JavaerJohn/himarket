@@ -20,7 +20,10 @@
 package com.alibaba.apiopenplatform.service.gateway;
 
 import cn.hutool.core.codec.Base64;
+import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
@@ -28,24 +31,23 @@ import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
+import com.alibaba.apiopenplatform.service.gateway.client.PopGatewayClient;
 import com.alibaba.apiopenplatform.service.gateway.client.SLSClient;
 import com.alibaba.apiopenplatform.support.consumer.APIGAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.enums.APIGAPIType;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
+import com.aliyuncs.http.MethodType;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import com.aliyun.sdk.service.sls20201230.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,6 +56,34 @@ public class AIGatewayOperator extends APIGOperator {
 
     @Override
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
+        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
+
+        Map<String , String> queryParams = MapUtil.<String, String>builder()
+                .put("gatewayId", gateway.getGatewayId())
+                .put("pageNumber", String.valueOf(page))
+                .put("pageSize", String.valueOf(size))
+                .build();
+
+        return client.execute("/v1/mcp-servers", MethodType.GET, queryParams, data -> {
+            List<APIGMCPServerResult> mcpServers = Optional.ofNullable(data.getJSONArray("items"))
+                    .map(items -> items.stream()
+                            .map(JSONObject.class::cast)
+                            .map(json -> {
+                                APIGMCPServerResult result = new APIGMCPServerResult();
+                                result.setMcpServerName(json.getStr("name"));
+                                result.setMcpServerId(json.getStr("mcpServerId"));
+                                result.setMcpRouteId(json.getStr("routeId"));
+                                result.setApiId(json.getStr("apiId"));
+                                return result;
+                            })
+                            .collect(Collectors.toList()))
+                    .orElse(new ArrayList<>());
+
+            return PageResult.of(mcpServers, page, size, data.getInt("totalSize"));
+        });
+    }
+
+    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers_V1(Gateway gateway, int page, int size) {
         PageResult<APIResult> apiPage = fetchAPIs(gateway, APIGAPIType.MCP, 0, 1);
         if (apiPage.getTotalElements() == 0) {
             return PageResult.empty(page, size);
@@ -81,6 +111,55 @@ public class AIGatewayOperator extends APIGOperator {
 
     @Override
     public String fetchMcpConfig(Gateway gateway, Object conf) {
+        APIGRefConfig config = (APIGRefConfig) conf;
+        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
+        String mcpServerId = config.getMcpServerId();
+        MCPConfigResult mcpConfig = new MCPConfigResult();
+
+        return client.execute("/v1/mcp-servers/" + mcpServerId, MethodType.GET, null, data -> {
+            mcpConfig.setMcpServerName(data.getStr("name"));
+
+            // mcpServer config
+            MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
+            String path = data.getStr("mcpServerPath");
+            String exposedUriPath = data.getStr("exposedUriPath");
+            if (StrUtil.isNotBlank(exposedUriPath)) {
+                path += exposedUriPath;
+            }
+            serverConfig.setPath(path);
+
+            JSONArray domains = data.getJSONArray("domainInfos");
+            if (domains != null && !domains.isEmpty()) {
+                serverConfig.setDomains(domains.stream()
+                        .map(JSONObject.class::cast)
+                        .map(json -> MCPConfigResult.Domain.builder()
+                                .domain(json.getStr("name"))
+                                .protocol(Optional.ofNullable(json.getStr("protocol"))
+                                        .map(String::toLowerCase)
+                                        .orElse(null))
+                                .build())
+                        .collect(Collectors.toList()));
+            }
+            mcpConfig.setMcpServerConfig(serverConfig);
+
+            // meta
+            MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
+            meta.setSource(GatewayType.APIG_AI.name());
+            meta.setProtocol(data.getStr("protocol"));
+            meta.setCreateFromType(data.getStr("createFromType"));
+            mcpConfig.setMeta(meta);
+
+            // tools
+            String tools = data.getStr("mcpServerConfig");
+            if (StrUtil.isNotBlank(tools)) {
+                mcpConfig.setTools(Base64.decodeStr(tools));
+            }
+
+            return JSONUtil.toJsonStr(mcpConfig);
+        });
+    }
+
+    public String fetchMcpConfig_V1(Gateway gateway, Object conf) {
         APIGRefConfig config = (APIGRefConfig) conf;
         HttpRoute httpRoute = fetchHTTPRoute(gateway, config.getApiId(), config.getMcpRouteId());
 
@@ -113,7 +192,7 @@ public class AIGatewayOperator extends APIGOperator {
         boolean fetchTool = true;
         if (mcpServerInfo.getMcpRouteConfig() != null) {
             String protocol = mcpServerInfo.getMcpRouteConfig().getProtocol();
-            meta.setFromType(protocol);
+            meta.setCreateFromType(protocol);
 
             // HTTP转MCP需从插件获取tools配置
             fetchTool = StrUtil.equalsIgnoreCase(protocol, "HTTP");
@@ -124,8 +203,8 @@ public class AIGatewayOperator extends APIGOperator {
             if (StrUtil.isNotBlank(toolSpec)) {
                 m.setTools(toolSpec);
                 // 默认为HTTP转MCP
-                if (StrUtil.isBlank(meta.getFromType())) {
-                    meta.setFromType("HTTP");
+                if (StrUtil.isBlank(meta.getCreateFromType())) {
+                    meta.setCreateFromType("HTTP");
                 }
             }
         }
@@ -140,8 +219,8 @@ public class AIGatewayOperator extends APIGOperator {
     }
 
     @Override
-    public String getDashboard(Gateway gateway,String type) {
-        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(),true);
+    public String getDashboard(Gateway gateway, String type) {
+        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(), true);
         String ticket = null;
         try {
             CreateTicketResponse response = ticketClient.execute(c -> {
@@ -185,9 +264,11 @@ public class AIGatewayOperator extends APIGOperator {
             gatewayFilter = "filters=cluster_id%%253A%%2520" + gatewayId;
         } else if (type.equals("API")) {
             dashboardId = "dashboard-1756276497392-966932";
-            gatewayFilter = "filters=cluster_id%%253A%%2520" + gatewayId;;
+            gatewayFilter = "filters=cluster_id%%253A%%2520" + gatewayId;
+            ;
         }
-        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/%s?%s&slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, dashboardId, gatewayFilter, region, ticket);        log.info("Dashboard URL: {}", dashboardUrl);
+        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/%s?%s&slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, dashboardId, gatewayFilter, region, ticket);
+        log.info("Dashboard URL: {}", dashboardUrl);
         return dashboardUrl;
     }
 

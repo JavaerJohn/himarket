@@ -5,6 +5,7 @@ import type { ApiProduct, LinkedService, RestAPIItem, HigressMCPItem, NacosMCPIt
 import type { Gateway, NacosInstance } from '@/types/gateway'
 import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
+import { copyToClipboard } from '@/lib/utils'
 import * as yaml from 'js-yaml'
 import { SwaggerUIWrapper } from './SwaggerUIWrapper'
 
@@ -74,7 +75,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiProduct.mcpConfig.mcpServerConfig.domains,
         apiProduct.mcpConfig.mcpServerConfig.path,
         apiProduct.mcpConfig.mcpServerName,
-        apiProduct.mcpConfig.mcpServerConfig.rawConfig
+        apiProduct.mcpConfig.mcpServerConfig.rawConfig,
+        apiProduct.mcpConfig.meta?.protocol
       )
     }
   }, [apiProduct])
@@ -123,7 +125,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     domains: Array<{ domain: string; protocol: string }> | null | undefined,
     path: string | null | undefined,
     serverName: string,
-    localConfig?: unknown
+    localConfig?: unknown,
+    protocolType?: string
   ) => {
     // 互斥：优先判断本地模式
     if (localConfig) {
@@ -139,29 +142,57 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       const domain = domains[0]
       const fullUrl = `${domain.protocol}://${domain.domain}${path || '/'}`
 
-      // SSE 配置
-      const sseConfig = {
-        mcpServers: {
-          [serverName]: {
-            type: "sse",
-            url: `${fullUrl}sse`
+      if (protocolType === 'SSE') {
+        // 仅生成SSE配置，不追加/sse
+        const sseConfig = {
+          mcpServers: {
+            [serverName]: {
+              type: "sse",
+              url: fullUrl
+            }
           }
         }
-      }
-
-      // HTTP 配置  
-      const httpConfig = {
-        mcpServers: {
-          [serverName]: {
-            url: fullUrl
+        setSseJson(JSON.stringify(sseConfig, null, 2))
+        setHttpJson("")
+        setLocalJson("")
+        return;
+      } else if (protocolType === 'StreamableHTTP') {
+        // 仅生成HTTP配置
+        const httpConfig = {
+          mcpServers: {
+            [serverName]: {
+              url: fullUrl
+            }
           }
         }
-      }
+        setHttpJson(JSON.stringify(httpConfig, null, 2))
+        setSseJson("")
+        setLocalJson("")
+        return;
+      } else {
+        // protocol为null或其他值：生成两种配置
+        const sseConfig = {
+          mcpServers: {
+            [serverName]: {
+              type: "sse",
+              url: `${fullUrl}/sse`
+            }
+          }
+        }
 
-      setSseJson(JSON.stringify(sseConfig, null, 2))
-      setHttpJson(JSON.stringify(httpConfig, null, 2))
-      setLocalJson("");
-      return;
+        const httpConfig = {
+          mcpServers: {
+            [serverName]: {
+              url: fullUrl
+            }
+          }
+        }
+
+        setSseJson(JSON.stringify(sseConfig, null, 2))
+        setHttpJson(JSON.stringify(httpConfig, null, 2))
+        setLocalJson("")
+        return;
+      }
     }
 
     // 无有效配置
@@ -172,19 +203,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
   const handleCopy = async (text: string) => {
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // 非安全上下文降级处理
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.style.position = "fixed";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
+      await copyToClipboard(text);
       message.success("已复制到剪贴板");
     } catch {
       message.error("复制失败，请手动复制");
@@ -275,6 +294,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           fromGatewayType: 'APIG_AI' as const,
           mcpRouteId: api.mcpRouteId,
           apiId: api.apiId,
+          mcpServerId: api.mcpServerId,
           type: 'MCP Server'
         }))
         setApiList(mcpServers)
@@ -288,6 +308,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           mcpServerName: api.mcpServerName || api.name,
           fromGatewayType: 'ADP_AI_GATEWAY' as const,
           mcpRouteId: api.mcpRouteId,
+          mcpServerId: api.mcpServerId,
           type: 'MCP Server'
         }))
         setApiList(mcpServers)
@@ -623,68 +644,75 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
                   <Tabs
                     size="small" 
-                    defaultActiveKey={localJson ? "local" : (httpJson ? "http" : "sse")}
-                    items={
-                      localJson
-                        ? [
-                            {
-                              key: "local",
-                              label: "Stdio",
-                              children: (
-                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                  <Button
-                                    size="small"
-                                    icon={<CopyOutlined />}
-                                    className="absolute top-2 right-2 z-10"
-                                    onClick={() => handleCopy(localJson)}
-                                  >
-                                  </Button>
-                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                    <pre className="whitespace-pre-wrap">{localJson}</pre>
-                                  </div>
+                    defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
+                    items={(() => {
+                      const tabs = [];
+                      
+                      if (localJson) {
+                        tabs.push({
+                          key: "local",
+                          label: "Stdio",
+                          children: (
+                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                              <Button
+                                size="small"
+                                icon={<CopyOutlined />}
+                                className="absolute top-2 right-2 z-10"
+                                onClick={() => handleCopy(localJson)}
+                              >
+                              </Button>
+                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                <pre className="whitespace-pre-wrap">{localJson}</pre>
+                              </div>
+                            </div>
+                          ),
+                        });
+                      } else {
+                        if (sseJson) {
+                          tabs.push({
+                            key: "sse",
+                            label: "SSE",
+                            children: (
+                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                <Button
+                                  size="small"
+                                  icon={<CopyOutlined />}
+                                  className="absolute top-2 right-2 z-10"
+                                  onClick={() => handleCopy(sseJson)}
+                                >
+                                </Button>
+                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                  <pre className="whitespace-pre-wrap">{sseJson}</pre>
                                 </div>
-                              ),
-                            },
-                          ]
-                        : [
-                            {
-                              key: "sse",
-                              label: "SSE",
-                              children: (
-                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                  <Button
-                                    size="small"
-                                    icon={<CopyOutlined />}
-                                    className="absolute top-2 right-2 z-10"
-                                    onClick={() => handleCopy(sseJson)}
-                                  >
-                                  </Button>
-                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                    <pre className="whitespace-pre-wrap">{sseJson}</pre>
-                                  </div>
+                              </div>
+                            ),
+                          });
+                        }
+                        
+                        if (httpJson) {
+                          tabs.push({
+                            key: "http",
+                            label: "Streaming HTTP",
+                            children: (
+                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                <Button
+                                  size="small"
+                                  icon={<CopyOutlined />}
+                                  className="absolute top-2 right-2 z-10"
+                                  onClick={() => handleCopy(httpJson)}
+                                >
+                                </Button>
+                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                  <pre className="whitespace-pre-wrap">{httpJson}</pre>
                                 </div>
-                              ),
-                            },
-                            {
-                              key: "http",
-                              label: "Streaming HTTP",
-                              children: (
-                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                  <Button
-                                    size="small"
-                                    icon={<CopyOutlined />}
-                                    className="absolute top-2 right-2 z-10"
-                                    onClick={() => handleCopy(httpJson)}
-                                  >
-                                  </Button>
-                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                    <pre className="whitespace-pre-wrap">{httpJson}</pre>
-                                  </div>
-                                </div>
-                              ),
-                            },
-                          ]
-                    }
+                              </div>
+                            ),
+                          });
+                        }
+                      }
+                      
+                      return tabs;
+                    })()}
                   />
                 </div>
               </Card>

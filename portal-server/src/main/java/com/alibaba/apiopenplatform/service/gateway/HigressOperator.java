@@ -21,18 +21,10 @@ package com.alibaba.apiopenplatform.service.gateway;
 
 import cn.hutool.core.map.MapBuilder;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.core.constant.Resources;
-import com.alibaba.apiopenplatform.core.exception.BusinessException;
-import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
-import com.alibaba.apiopenplatform.entity.Product;
-import com.alibaba.apiopenplatform.entity.ProductRef;
-import com.alibaba.apiopenplatform.repository.ProductRefRepository;
-import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
 import com.alibaba.apiopenplatform.service.gateway.client.HigressClient;
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
@@ -42,15 +34,10 @@ import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
 import com.alibaba.apiopenplatform.support.product.HigressRefConfig;
 
-import java.util.ArrayList;
-import java.util.Optional;
-
 import lombok.Builder;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
@@ -134,7 +121,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         // meta
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.HIGRESS.name());
-        meta.setFromType(higressMCPConfig.getType());
+        meta.setCreateFromType(higressMCPConfig.getType());
         m.setMeta(meta);
 
         return JSONUtil.toJsonStr(m);

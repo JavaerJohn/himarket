@@ -31,6 +31,7 @@ public class APIGRefConfig {
     /**
      * MCP标识信息
      */
+    private String mcpServerId;
     private String mcpRouteId;
     private String mcpServerName;
 

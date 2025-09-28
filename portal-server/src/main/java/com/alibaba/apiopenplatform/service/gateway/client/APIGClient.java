@@ -21,7 +21,6 @@ package com.alibaba.apiopenplatform.service.gateway.client;
 
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.support.gateway.APIGConfig;
 import com.aliyun.auth.credentials.Credential;
 import com.aliyun.auth.credentials.provider.StaticCredentialProvider;
@@ -29,8 +28,6 @@ import com.aliyun.sdk.service.apig20240327.AsyncClient;
 import darabonba.core.client.ClientOverrideConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.function.Function;
 
 @Slf4j
@@ -69,20 +66,8 @@ public class APIGClient extends GatewayClient {
                 .credentialsProvider(provider)
                 .overrideConfiguration(
                         ClientOverrideConfiguration.create()
-                                .setEndpointOverride(getEndpoint(config.getRegion()))
+                                .setEndpointOverride(getAPIGEndpoint(config.getRegion()))
                 ).build();
     }
 
-    private String getEndpoint(String region) {
-        String internalEndpoint = String.format("apig-vpc.%s.aliyuncs.com", region);
-        String publicEndpoint = String.format("apig.%s.aliyuncs.com", region);
-
-        // 优先尝试内网endpoint
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(internalEndpoint, 443), 1000); // 1秒超时
-            return internalEndpoint;
-        } catch (Exception e) {
-            return publicEndpoint;
-        }
-    }
 }

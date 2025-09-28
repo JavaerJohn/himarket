@@ -97,7 +97,8 @@ function McpDetail() {
     domains: Array<{ domain: string; protocol: string }> | null | undefined,
     path: string | null | undefined,
     serverName: string,
-    localConfig?: unknown
+    localConfig?: unknown,
+    protocolType?: string
   ) => {
     // 互斥：优先判断本地模式
     if (localConfig) {
@@ -118,7 +119,36 @@ function McpDetail() {
         endpoint = `${baseUrl}/mcp-servers${path}`;
       }
 
-      const httpConfig = `{
+      if (protocolType === 'SSE') {
+        // 仅生成SSE配置，不追加/sse
+        const sseConfig = `{
+  "mcpServers": {
+    "${serverName}": {
+      "type": "sse",
+      "url": "${endpoint}"
+    }
+  }
+}`;
+        setSseJson(sseConfig);
+        setHttpJson("");
+        setLocalJson("");
+        return;
+      } else if (protocolType === 'StreamableHTTP') {
+        // 仅生成HTTP配置
+        const httpConfig = `{
+  "mcpServers": {
+    "${serverName}": {
+      "url": "${endpoint}"
+    }
+  }
+}`;
+        setHttpJson(httpConfig);
+        setSseJson("");
+        setLocalJson("");
+        return;
+      } else {
+        // protocol为null或其他值：生成两种配置
+        const httpConfig = `{
   "mcpServers": {
     "${serverName}": {
       "url": "${endpoint}"
@@ -126,7 +156,7 @@ function McpDetail() {
   }
 }`;
 
-      const sseConfig = `{
+        const sseConfig = `{
   "mcpServers": {
     "${serverName}": {
       "type": "sse",
@@ -135,10 +165,11 @@ function McpDetail() {
   }
 }`;
 
-      setHttpJson(httpConfig);
-      setSseJson(sseConfig);
-      setLocalJson("");
-      return;
+        setHttpJson(httpConfig);
+        setSseJson(sseConfig);
+        setLocalJson("");
+        return;
+      }
     }
 
     // 无有效配置
@@ -197,10 +228,11 @@ function McpDetail() {
         mcpConfig.mcpServerConfig.domains,
         mcpConfig.mcpServerConfig.path,
         mcpConfig.mcpServerName,
-        mcpConfig.mcpServerConfig.rawConfig
+        mcpConfig.mcpServerConfig.rawConfig,
+(mcpConfig.meta as any)?.protocol
       );
     }
-  }, [mcpConfig]);
+  }, [mcpConfig, generateConnectionConfig]);
 
   const handleCopy = async (text: string) => {
     try {
@@ -512,68 +544,75 @@ function McpDetail() {
                 <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
                 <Tabs
                   size="small" 
-                  defaultActiveKey={hasLocalConfig ? "local" : (httpJson ? "http" : "sse")}
-                  items={
-                    hasLocalConfig
-                      ? [
-                          {
-                            key: "local",
-                            label: "Stdio",
-                            children: (
-                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<CopyOutlined />}
-                                  className="absolute top-2 right-2 z-10"
-                                  onClick={() => handleCopy(localJson)}
-                                />
-                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre-wrap">{localJson}</pre>
-                                </div>
+                  defaultActiveKey={hasLocalConfig ? "local" : (sseJson ? "sse" : "http")}
+                  items={(() => {
+                    const tabs = [];
+                    
+                    if (hasLocalConfig) {
+                      tabs.push({
+                        key: "local",
+                        label: "Stdio",
+                        children: (
+                          <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<CopyOutlined />}
+                              className="absolute top-2 right-2 z-10"
+                              onClick={() => handleCopy(localJson)}
+                            />
+                            <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                              <pre className="whitespace-pre-wrap">{localJson}</pre>
+                            </div>
+                          </div>
+                        ),
+                      });
+                    } else {
+                      if (sseJson) {
+                        tabs.push({
+                          key: "sse",
+                          label: "SSE",
+                          children: (
+                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<CopyOutlined />}
+                                className="absolute top-2 right-2 z-10"
+                                onClick={() => handleCopy(sseJson)}
+                              />
+                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                <pre className="whitespace-pre-wrap">{sseJson}</pre>
                               </div>
-                            ),
-                          },
-                        ]
-                      : [
-                          {
-                            key: "sse",
-                            label: "SSE",
-                            children: (
-                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<CopyOutlined />}
-                                  className="absolute top-2 right-2 z-10"
-                                  onClick={() => handleCopy(sseJson)}
-                                />
-                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre-wrap">{sseJson}</pre>
-                                </div>
+                            </div>
+                          ),
+                        });
+                      }
+                      
+                      if (httpJson) {
+                        tabs.push({
+                          key: "http",
+                          label: "Streaming HTTP",
+                          children: (
+                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<CopyOutlined />}
+                                className="absolute top-2 right-2 z-10"
+                                onClick={() => handleCopy(httpJson)}
+                              />
+                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                <pre className="whitespace-pre-wrap">{httpJson}</pre>
                               </div>
-                            ),
-                          },
-                          {
-                            key: "http",
-                            label: "Streaming HTTP",
-                            children: (
-                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<CopyOutlined />}
-                                  className="absolute top-2 right-2 z-10"
-                                  onClick={() => handleCopy(httpJson)}
-                                />
-                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre-wrap">{httpJson}</pre>
-                                </div>
-                              </div>
-                            ),
-                          },
-                        ]
-                  }
+                            </div>
+                          ),
+                        });
+                      }
+                    }
+                    
+                    return tabs;
+                  })()}
                 />
               </div>
             </Card>

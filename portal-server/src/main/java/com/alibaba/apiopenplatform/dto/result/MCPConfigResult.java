@@ -50,8 +50,12 @@ public class MCPConfigResult {
          * AI网关：HTTP（HTTP转MCP）/MCP（MCP直接代理）
          * Higress：OPEN_API（OpenAPI转MCP）/DIRECT_ROUTE（直接路由）/DATABASE（数据库）
          */
-        private String fromType;
+        private String createFromType;
 
+        /**
+         * HTTP/SSE
+         */
+        private String protocol;
     }
 
     @Data

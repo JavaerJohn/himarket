@@ -4,6 +4,7 @@ import 'swagger-ui-react/swagger-ui.css';
 import './SwaggerUIWrapper.css';
 import * as yaml from 'js-yaml';
 import { message } from 'antd';
+import { copyToClipboard } from '@/lib/utils';
 
 interface SwaggerUIWrapperProps {
   apiSpec: string;
@@ -108,23 +109,15 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
                 justify-content: center;
               `;
               
-              copyBtn.addEventListener('click', () => {
+              copyBtn.addEventListener('click', async () => {
                 const serverSelect = serversContainer.querySelector('select') as HTMLSelectElement;
                 if (serverSelect && serverSelect.value) {
-                  navigator.clipboard.writeText(serverSelect.value)
-                    .then(() => {
-                      message.success('服务器地址已复制到剪贴板', 1);
-                    })
-                    .catch(() => {
-                      // 降级到传统复制方法
-                      const textArea = document.createElement('textarea');
-                      textArea.value = serverSelect.value;
-                      document.body.appendChild(textArea);
-                      textArea.select();
-                      document.execCommand('copy');
-                      document.body.removeChild(textArea);
-                      message.success('服务器地址已复制到剪贴板', 1);
-                    });
+                  try {
+                    await copyToClipboard(serverSelect.value);
+                    message.success('服务器地址已复制到剪贴板', 1);
+                  } catch {
+                    message.error('复制失败，请手动复制');
+                  }
                 }
               });
 

@@ -29,7 +29,7 @@
     <name>himarket</name>
     <description>HiMarket AI OPEN Platform</description>
     <url>https://github.com/higress-group/himarket</url>
-    
+
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -56,6 +56,8 @@
         <bouncycastle.version>1.78</bouncycastle.version>
         <springdoc.version>1.7.0</springdoc.version>
         <apigsdk.version>4.0.10</apigsdk.version>
+        <msesdk.version>7.21.0</msesdk.version>
+        <aliyunsdk.version>4.4.6</aliyunsdk.version>
         <okhttp.version>4.12.0</okhttp.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -116,6 +118,19 @@
                 <groupId>com.aliyun</groupId>
                 <artifactId>alibabacloud-apig20240327</artifactId>
                 <version>${apigsdk.version}</version>
+            </dependency>
+
+            <!-- 阿里云 MSE SDK -->
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>mse20190531</artifactId>
+                <version>${msesdk.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>aliyun-java-sdk-core</artifactId>
+                <version>${aliyunsdk.version}</version>
             </dependency>
 
             <dependency>

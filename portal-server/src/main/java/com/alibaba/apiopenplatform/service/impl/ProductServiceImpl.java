@@ -197,7 +197,7 @@ public class ProductServiceImpl implements ProductService {
                     }
 
                     publicationResult.setPortalName(portal.getName());
-                    publicationResult.setAutoApproveSubscription(portal.getPortalSettingConfig().getAutoApproveSubscriptions());
+                    publicationResult.setAutoApproveSubscriptions(portal.getPortalSettingConfig().getAutoApproveSubscriptions());
 
                     return publicationResult;
                 });

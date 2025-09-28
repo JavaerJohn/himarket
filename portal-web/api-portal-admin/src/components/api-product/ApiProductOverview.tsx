@@ -13,7 +13,7 @@ import {
   ClockCircleFilled
 } from '@ant-design/icons'
 import type { ApiProduct } from '@/types/api-product'
-import { getServiceName, formatDateTime } from '@/lib/utils'
+import { getServiceName, formatDateTime, copyToClipboard } from '@/lib/utils'
 import { apiProductApi } from '@/lib/api'
 
 
@@ -77,9 +77,13 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                   type="text" 
                   size="small"
                   icon={<CopyOutlined />}
-                  onClick={() => {
-                    navigator.clipboard.writeText(apiProduct.productId);
-                    message.success('产品ID已复制');
+                  onClick={async () => {
+                    try {
+                      await copyToClipboard(apiProduct.productId);
+                      message.success('产品ID已复制');
+                    } catch {
+                      message.error('复制失败，请手动复制');
+                    }
                   }}
                   className="h-auto p-1 min-w-0"
                 />

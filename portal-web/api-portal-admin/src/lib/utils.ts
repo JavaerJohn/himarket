@@ -217,3 +217,35 @@ export const getMethodColor = (method: string): string => {
   };
   return colors[method.toUpperCase()] || 'gray';
 };
+
+/**
+ * 复制文本到剪贴板
+ * @param text 要复制的文本
+ */
+export const copyToClipboard = async (text: string): Promise<void> => {
+  try {
+    // 优先尝试现代 Clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch (error) {
+    // 现代API失败，继续降级处理
+    console.warn('Modern clipboard API failed, falling back to execCommand');
+  }
+
+  try {
+    // 降级到传统方法
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  } catch (error) {
+    console.error('All copy methods failed:', error);
+    throw error;
+  }
+};

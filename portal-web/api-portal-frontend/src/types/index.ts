@@ -16,6 +16,7 @@ export interface ApiProductMcpConfig {
     mcpServerName: string;
     mcpServerConfig: any;
     fromType: string;
+    protocol?: string;
   }
   mcpServerConfig: {
     path: string;
@@ -186,5 +187,6 @@ export interface McpConfig {
   meta: {
     source: string;
     fromType: string;
+    protocol?: string;
   };
 }

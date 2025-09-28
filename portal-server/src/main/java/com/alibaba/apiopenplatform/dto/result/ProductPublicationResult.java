@@ -32,7 +32,7 @@ public class ProductPublicationResult implements OutputConverter<ProductPublicat
 
     private String portalName;
 
-    private Boolean autoApproveSubscription = false;
+    private Boolean autoApproveSubscriptions = false;
 
     private LocalDateTime createAt;
 }
