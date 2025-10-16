@@ -21,10 +21,7 @@ package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.core.event.PortalDeletingEvent;
 import com.alibaba.apiopenplatform.dto.params.product.*;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
-import com.alibaba.apiopenplatform.dto.result.ProductPublicationResult;
-import com.alibaba.apiopenplatform.dto.result.ProductRefResult;
-import com.alibaba.apiopenplatform.dto.result.ProductResult;
+import com.alibaba.apiopenplatform.dto.result.*;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -139,4 +136,22 @@ public interface ProductService {
      * @return Dashboard URL
      */
     String getProductDashboard(String productId);
+
+    /**
+     * 获取API产品的订阅信息
+     *
+     * @param productId
+     * @param param
+     * @param pageable
+     * @return
+     */
+    PageResult<SubscriptionResult> listProductSubscriptions(String productId, QueryProductSubscriptionParam param, Pageable pageable);
+
+    /**
+     * 检查API产品是否存在
+     *
+     * @param productId
+     * @return
+     */
+    void existsProduct(String productId);
 }

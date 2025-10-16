@@ -19,6 +19,7 @@
 
 package com.alibaba.apiopenplatform.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.constant.Resources;
@@ -30,12 +31,8 @@ import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
 import com.alibaba.apiopenplatform.dto.params.product.*;
 import com.alibaba.apiopenplatform.dto.result.*;
-import com.alibaba.apiopenplatform.entity.Product;
-import com.alibaba.apiopenplatform.entity.ProductRef;
-import com.alibaba.apiopenplatform.entity.ProductPublication;
-import com.alibaba.apiopenplatform.repository.ProductRepository;
-import com.alibaba.apiopenplatform.repository.ProductRefRepository;
-import com.alibaba.apiopenplatform.repository.ProductPublicationRepository;
+import com.alibaba.apiopenplatform.entity.*;
+import com.alibaba.apiopenplatform.repository.*;
 import com.alibaba.apiopenplatform.service.GatewayService;
 import com.alibaba.apiopenplatform.service.PortalService;
 import com.alibaba.apiopenplatform.service.ProductService;
@@ -78,6 +75,10 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRefRepository productRefRepository;
 
     private final ProductPublicationRepository publicationRepository;
+
+    private final SubscriptionRepository subscriptionRepository;
+
+    private final ConsumerRepository consumerRepository;
 
     private final NacosService nacosService;
 
@@ -399,5 +400,73 @@ public class ProductServiceImpl implements ProductService {
         }
         // 通过网关服务获取Dashboard URL
         return gatewayService.getDashboard(productRef.getGatewayId(), dashboardType);
+    }
+
+    @Override
+    public PageResult<SubscriptionResult> listProductSubscriptions(String productId, QueryProductSubscriptionParam param, Pageable pageable) {
+        existsProduct(productId);
+        Page<ProductSubscription> subscriptions = subscriptionRepository.findAll(buildProductSubscriptionSpec(productId, param), pageable);
+
+        List<String> consumerIds = subscriptions.getContent().stream()
+                .map(ProductSubscription::getConsumerId)
+                .collect(Collectors.toList());
+        if (CollUtil.isEmpty(consumerIds)) {
+            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
+        }
+
+        Map<String, Consumer> consumers = consumerRepository.findByConsumerIdIn(consumerIds)
+                .stream()
+                .collect(Collectors.toMap(Consumer::getConsumerId, consumer -> consumer));
+
+        return new PageResult<SubscriptionResult>().convertFrom(subscriptions, s -> {
+            SubscriptionResult r = new SubscriptionResult().convertFrom(s);
+            Consumer consumer = consumers.get(r.getConsumerId());
+            if (consumer != null) {
+                r.setConsumerName(consumer.getName());
+            }
+            return r;
+        });
+    }
+
+    @Override
+    public void existsProduct(String productId) {
+        productRepository.findByProductId(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
+    }
+
+    private Specification<ProductSubscription> buildProductSubscriptionSpec(String productId, QueryProductSubscriptionParam param) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("productId"), productId));
+
+            // 如果是开发者，只能查看自己的Consumer订阅
+            if (contextHolder.isDeveloper()) {
+                Subquery<String> consumerSubquery = query.subquery(String.class);
+                Root<Consumer> consumerRoot = consumerSubquery.from(Consumer.class);
+                consumerSubquery.select(consumerRoot.get("consumerId"))
+                        .where(cb.equal(consumerRoot.get("developerId"), contextHolder.getUser()));
+
+                predicates.add(root.get("consumerId").in(consumerSubquery));
+            }
+
+            if (param.getStatus() != null) {
+                predicates.add(cb.equal(root.get("status"), param.getStatus()));
+            }
+
+            if (StrUtil.isNotBlank(param.getConsumerName())) {
+                Subquery<String> consumerSubquery = query.subquery(String.class);
+                Root<Consumer> consumerRoot = consumerSubquery.from(Consumer.class);
+
+                consumerSubquery.select(consumerRoot.get("consumerId"))
+                        .where(cb.like(
+                                cb.lower(consumerRoot.get("name")),
+                                "%" + param.getConsumerName().toLowerCase() + "%"
+                        ));
+
+                predicates.add(root.get("consumerId").in(consumerSubquery));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 }

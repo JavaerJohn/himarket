@@ -132,7 +132,7 @@ function ApiDetailPage() {
       <Row gutter={24}>
         {/* 左侧内容 */}
         <Col span={15}>
-          <Card className="mb-6">
+          <Card className="mb-6 rounded-lg border-gray-200">
             <Tabs
               defaultActiveKey="overview"
               items={[
@@ -323,12 +323,14 @@ function ApiDetailPage() {
 
         {/* 右侧内容 */}
         <Col span={9}>
-          <Card title={
-            <Space>
-              <RocketOutlined />
-              <span>快速开始</span>
-            </Space>
-          }>
+          <Card 
+            className="rounded-lg border-gray-200"
+            title={
+              <Space>
+                <RocketOutlined />
+                <span>快速开始</span>
+              </Space>
+            }>
             <Space direction="vertical" className="w-full" size="middle">
               {/* cURL示例 */}
               <div>

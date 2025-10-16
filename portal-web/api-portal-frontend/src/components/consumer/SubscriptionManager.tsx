@@ -4,7 +4,7 @@ import {
   Button,
   message,
   Input,
-  Drawer,
+  Modal,
   Table,
   Badge,
   Popconfirm,
@@ -27,20 +27,34 @@ interface SubscriptionManagerProps {
 }
 
 export function SubscriptionManager({ consumerId, subscriptions, onSubscriptionsChange, loading = false }: SubscriptionManagerProps) {
-  const [productDrawerVisible, setProductDrawerVisible] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [productModalVisible, setProductModalVisible] = useState(false);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [productLoading, setProductLoading] = useState(false);
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [subscriptionSearch, setSubscriptionSearch] = useState({ productName: '', status: '' as 'PENDING' | 'APPROVED' | '' });
 
-  const openProductDrawer = async () => {
-    setProductDrawerVisible(true);
+  // 过滤产品：移除已订阅的产品
+  const filterProducts = (allProducts: Product[]) => {
+    // 获取已订阅的产品ID列表
+    const subscribedProductIds = subscriptions.map(sub => sub.productId);
+    
+    // 过滤掉已订阅的产品
+    return allProducts.filter(product => 
+      !subscribedProductIds.includes(product.productId)
+    );
+  };
+
+  const openProductModal = async () => {
+    setProductModalVisible(true);
     setProductLoading(true);
     try {
       const response: ApiResponse<{ content: Product[] }> = await api.get("/products?page=0&size=100");
       if (response?.code === "SUCCESS" && response?.data) {
-        setProducts(response.data.content || []);
+        const allProducts = response.data.content || [];
+        // 初始化时过滤掉已订阅的产品
+        const filtered = filterProducts(allProducts);
+        setFilteredProducts(filtered);
       }
     } catch (error) {
       console.error('获取产品列表失败:', error);
@@ -49,6 +63,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
       setProductLoading(false);
     }
   };
+
 
   const handleSubscribeProducts = async () => {
     if (!selectedProduct) {
@@ -60,7 +75,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
     try {
       await api.post(`/consumers/${consumerId}/subscriptions`, { productId: selectedProduct });
       message.success('订阅成功');
-      setProductDrawerVisible(false);
+      setProductModalVisible(false);
       setSelectedProduct('');
       onSubscriptionsChange();
     } catch (error) {
@@ -145,7 +160,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={openProductDrawer}
+              onClick={openProductModal}
             >
               订阅
             </Button>
@@ -185,15 +200,13 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
         />
       </Card>
 
-      {/* 产品选择抽屉 */}
-      <Drawer
-        title="订阅"
-        placement="right"
-        width={600}
-        open={productDrawerVisible}
-        onClose={() => {
+      {/* 产品选择弹窗 */}
+      <Modal
+        title="订阅产品"
+        open={productModalVisible}
+        onCancel={() => {
           if (!subscribeLoading) {
-            setProductDrawerVisible(false);
+            setProductModalVisible(false);
             setSelectedProduct('');
           }
         }}
@@ -202,7 +215,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
             <Button
               onClick={() => {
                 if (!subscribeLoading) {
-                  setProductDrawerVisible(false);
+                  setProductModalVisible(false);
                   setSelectedProduct('');
                 }
               }}
@@ -220,31 +233,51 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
             </Button>
           </div>
         }
+        width={500}
+        styles={{
+          content: {
+            borderRadius: '8px',
+            padding: 0
+          },
+          header: {
+            borderRadius: '8px 8px 0 0',
+            marginBottom: 0,
+            paddingBottom: '8px'
+          },
+          body: {
+            padding: '24px'
+          }
+        }}
       >
-        <div className="mb-4">
-          <div className="text-sm text-gray-600 mb-2">选择要订阅的产品：</div>
+        <div>
+          <div className="text-sm text-gray-700 mb-3 font-medium">选择要订阅的产品：</div>
           <Select
-            placeholder="请选择产品"
-            style={{ width: '100%'}}
+            placeholder="请输入产品名称进行搜索或直接选择"
+            style={{ width: '100%' }}
             value={selectedProduct}
             onChange={setSelectedProduct}
             loading={productLoading}
-            showSearch
-            // filterOption={(input, option) => {
-            //   const product = option?.data as Product;
-            //   return product?.name?.toLowerCase().includes(input.toLowerCase()) ||
-            //          product?.description?.toLowerCase().includes(input.toLowerCase());
-            // }}
-            // optionFilterProp="children"
+            showSearch={true}
+            filterOption={(input, option) => {
+              const product = filteredProducts.find(p => p.productId === option?.value);
+              if (!product) return false;
+              
+              const searchText = input.toLowerCase();
+              return (
+                product.name?.toLowerCase().includes(searchText) ||
+                product.description?.toLowerCase().includes(searchText)
+              );
+            }}
+            notFoundContent={productLoading ? '加载中...' : '暂无可订阅的产品'}
           >
-            {products.map(product => (
+            {filteredProducts.map(product => (
               <Select.Option key={product.productId} value={product.productId}>
                 {product.name}
               </Select.Option>
             ))}
           </Select>
         </div>
-      </Drawer>
+      </Modal>
     </>
   );
 } 

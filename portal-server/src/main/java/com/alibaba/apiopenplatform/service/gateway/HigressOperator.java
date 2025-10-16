@@ -110,7 +110,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         c.setPath("/mcp-servers/" + higressMCPConfig.getName());
         c.setDomains(higressMCPConfig.getDomains().stream().map(domain -> MCPConfigResult.Domain.builder()
                         .domain(domain)
-                        .protocol("https")
+                        // 默认HTTP
+                        .protocol("http")
                         .build())
                 .collect(Collectors.toList()));
         m.setMcpServerConfig(c);
@@ -218,8 +219,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         return GatewayType.HIGRESS;
     }
 
-        @Override
-        public String getDashboard(Gateway gateway,String type) {
+    @Override
+    public String getDashboard(Gateway gateway, String type) {
         throw new UnsupportedOperationException("Higress gateway does not support getting dashboard");
     }
 

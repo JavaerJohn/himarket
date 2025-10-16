@@ -27,7 +27,7 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
         showSizeChanger: true,
         showQuickJumper: true,
         showTotal: (total: number, range: [number, number]) =>
-            `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+            `共 ${total} 条`
     })
 
     // Consumer相关状态
@@ -41,7 +41,7 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
         showSizeChanger: true,
         showQuickJumper: true,
         showTotal: (total: number, range: [number, number]) =>
-            `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+            `共 ${total} 条`
     })
 
     // 订阅列表相关状态

@@ -133,7 +133,7 @@ export default function ImportMseNacosModal({ visible, onCancel, onPrefill }: Im
                 onChange: (page, pageSize) => fetchMseNacos(auth, page - 1, pageSize),
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+                showTotal: (total) => `共 ${total} 条`,
               }}
               size="small"
             />

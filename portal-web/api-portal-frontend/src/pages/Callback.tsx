@@ -1,10 +1,11 @@
 import React, { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { message, Spin } from "antd";
 import api from "../lib/api";
 
 const Callback: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -25,7 +26,7 @@ const Callback: React.FC = () => {
           // 存储access_token
           localStorage.setItem('access_token', res.data.access_token);
           // 跳转首页
-          window.location.href = `/`;
+          navigate('/');
         } else {
           message.error("登录失败，未获取到 access_token");
         }
@@ -33,7 +34,7 @@ const Callback: React.FC = () => {
       .catch(() => {
         message.error("登录失败，请重试");
       });
-  }, [location.search]);
+  }, [location.search, navigate]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

@@ -32,4 +32,4 @@ export interface NacosInstance {
   createAt?: string | number
 }
 
-export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS'
+export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY'

@@ -23,6 +23,7 @@ import com.alibaba.apiopenplatform.entity.Consumer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,4 +43,5 @@ public interface ConsumerRepository extends BaseRepository<Consumer, Long> {
 
     void deleteAllByDeveloperId(String developerId);
 
+    List<Consumer> findByConsumerIdIn(Collection<String> consumerIds);
 }

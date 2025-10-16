@@ -26,8 +26,7 @@ export function SubscriptionListModal({
     total: 0,
     showSizeChanger: true,
     showQuickJumper: true,
-    showTotal: (total: number, range: [number, number]) => 
-      `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+    showTotal: (total: number) => `共 ${total} 条`
   });
 
   useEffect(() => {

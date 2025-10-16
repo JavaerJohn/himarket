@@ -47,6 +47,9 @@ export interface Subscription {
   status: 'PENDING' | 'APPROVED';
   createAt: string;
   updatedAt: string;
+  productName: string;
+  productType: 'REST_API' | 'MCP_SERVER';
+  consumerName?: string;
   product?: Product;
 }
 

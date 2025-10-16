@@ -101,6 +101,73 @@ export function subscribeProduct(consumerId: string, productId: string) {
   });
 }
 
+// 获取某个consumer的订阅列表
+export function getConsumerSubscriptions(consumerId: string, searchParams?: { productName?: string; status?: string }) {
+  return api.get(`/consumers/${consumerId}/subscriptions`, {
+    params: {
+      page: 1,
+      size: 100,
+      ...searchParams
+    }
+  });
+}
+
+// 取消订阅
+export function unsubscribeProduct(consumerId: string, productId: string) {
+  return api.delete(`/consumers/${consumerId}/subscriptions/${productId}`);
+}
+
+// 查询产品的订阅详情（使用新的后端接口）
+export async function getProductSubscriptions(productId: string, params?: {
+  status?: string;
+  consumerName?: string;
+  page?: number;
+  size?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.append('status', params.status);
+  if (params?.consumerName) searchParams.append('consumerName', params.consumerName);
+  if (params?.page !== undefined) searchParams.append('page', params.page.toString());
+  if (params?.size !== undefined) searchParams.append('size', params.size.toString());
+  
+  const url = `/products/${productId}/subscriptions${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+  return api.get(url);
+}
+
+// 查询当前开发者对某个产品的订阅状态
+export async function getProductSubscriptionStatus(productId: string) {
+  try {
+    // 使用新接口获取产品的所有订阅（不过滤状态，只要有申请就算已订阅）
+    const response = await getProductSubscriptions(productId, { size: 100 });
+    const subscriptions = response.data.content || [];
+    
+    // 转换为原有格式以保持兼容性
+    const subscribedConsumers = subscriptions.map((sub: any) => ({
+      consumer: {
+        consumerId: sub.consumerId,
+        name: sub.consumerName
+      },
+      subscription: sub,
+      subscribed: true
+    }));
+    
+    return {
+      hasSubscription: subscribedConsumers.length > 0,
+      subscribedConsumers: subscribedConsumers,
+      allConsumers: [], // 延迟加载，在申请订阅时才获取
+      // 新增：返回完整的订阅数据供管理弹窗使用
+      fullSubscriptionData: {
+        content: subscriptions,
+        totalElements: response.data.totalElements || subscriptions.length,
+        totalPages: response.data.totalPages || 1
+      }
+    };
+  } catch (error) {
+    console.error('Failed to get product subscription status:', error);
+    throw error;
+  }
+}
+
 
 // OIDC相关接口定义 - 对接OidcController
 export interface IdpResult {

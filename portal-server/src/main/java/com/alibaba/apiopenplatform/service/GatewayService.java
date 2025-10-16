@@ -21,6 +21,7 @@ package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.dto.params.gateway.ImportGatewayParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
+import com.alibaba.apiopenplatform.dto.params.gateway.QueryGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.Consumer;
@@ -53,10 +54,11 @@ public interface GatewayService {
     /**
      * 获取导入的Gateway列表
      *
+     * @param param
      * @param pageable
      * @return
      */
-    PageResult<GatewayResult> listGateways(Pageable pageable);
+    PageResult<GatewayResult> listGateways(QueryGatewayParam param, Pageable pageable);
 
     /**
      * 删除Gateway
@@ -105,5 +107,5 @@ public interface GatewayService {
      *
      * @return 仪表板URL
      */
-    String getDashboard(String gatewayId,String type);
+    String getDashboard(String gatewayId, String type);
 }

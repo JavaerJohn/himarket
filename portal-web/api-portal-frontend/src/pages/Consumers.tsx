@@ -4,7 +4,7 @@ import { Layout } from "../components/Layout";
 import { useEffect, useState, useCallback } from "react";
 import { getConsumers, deleteConsumer, createConsumer } from "../lib/api";
 import { message, Modal } from "antd";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { formatDateTime } from "../lib/utils";
 import type { Consumer } from "../types/consumer";
 
@@ -12,7 +12,6 @@ const { Title, Paragraph } = Typography;
 const { Search } = Input;
 
 function ConsumersPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const productId = searchParams.get('productId');
   
@@ -119,13 +118,14 @@ function ConsumersPage() {
       key: 'action',
       render: (_: unknown, record: Consumer) => (
         <Space>
-          <Button 
-            type="link" 
-            icon={<EyeOutlined />} 
-            onClick={() => navigate(`/consumers/${record.consumerId}`)}
-          >
-            查看详情
-          </Button>
+          <Link to={`/consumers/${record.consumerId}`}>
+            <Button 
+              type="link" 
+              icon={<EyeOutlined />}
+            >
+              查看详情
+            </Button>
+          </Link>
           <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
             删除
           </Button>
@@ -159,7 +159,7 @@ function ConsumersPage() {
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             onSearch={handleSearch}
-            enterButton
+            allowClear
           />
         </div>
         <Table

@@ -23,6 +23,7 @@ import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
 import com.alibaba.apiopenplatform.dto.params.gateway.ImportGatewayParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
+import com.alibaba.apiopenplatform.dto.params.gateway.QueryGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.service.GatewayService;
@@ -63,8 +64,8 @@ public class GatewayController {
 
     @Operation(summary = "获取导入的Gateway列表")
     @GetMapping
-    public PageResult<GatewayResult> listGateways(Pageable pageable) {
-        return gatewayService.listGateways(pageable);
+    public PageResult<GatewayResult> listGateways(QueryGatewayParam param, Pageable pageable) {
+        return gatewayService.listGateways(param, pageable);
     }
 
     @Operation(summary = "导入Gateway")

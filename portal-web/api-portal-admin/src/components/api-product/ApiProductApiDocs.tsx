@@ -1,4 +1,4 @@
-import { Card, Space, Tag, Tabs, Table, Collapse, Descriptions } from "antd";
+import { Card, Tag, Tabs, Table, Collapse, Descriptions } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import type { ApiProduct } from "@/types/api-product";
 import MonacoEditor from "react-monaco-editor";
@@ -222,9 +222,9 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
           }
         }
 
-        setEndpoints(list.length > 0 ? list : getDefaultEndpoints());
+        setEndpoints(list.length > 0 ? list : []);
       } catch {
-        setEndpoints(getDefaultEndpoints());
+        setEndpoints([]);
       }
     } else {
       setEndpoints([]);
@@ -341,17 +341,6 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
       }
     }
     return "";
-  }
-
-  function getDefaultEndpoints() {
-    return [
-      {
-        key: "1",
-        method: "GET",
-        path: "/api/endpoints",
-        description: "获取端点列表",
-      },
-    ];
   }
 
   return (

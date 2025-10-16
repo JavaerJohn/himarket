@@ -29,6 +29,7 @@ import com.alibaba.apiopenplatform.core.utils.IdGenerator;
 import com.alibaba.apiopenplatform.dto.params.gateway.ImportGatewayParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
+import com.alibaba.apiopenplatform.dto.params.gateway.QueryGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.repository.GatewayRepository;
@@ -47,8 +48,12 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import javax.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -75,6 +80,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         return gatewayOperators.get(GatewayType.ADP_AI_GATEWAY).fetchGateways(param, page, size);
     }
 
+    @Override
     public void importGateway(ImportGatewayParam param) {
         gatewayRepository.findByGatewayId(param.getGatewayId())
                 .ifPresent(gateway -> {
@@ -97,8 +103,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public PageResult<GatewayResult> listGateways(Pageable pageable) {
-        Page<Gateway> gateways = gatewayRepository.findAll(pageable);
+    public PageResult<GatewayResult> listGateways(QueryGatewayParam param, Pageable pageable) {
+        Page<Gateway> gateways = gatewayRepository.findAll(buildGatewaySpec(param), pageable);
 
         return new PageResult<GatewayResult>().convertFrom(gateways, gateway -> new GatewayResult().convertFrom(gateway));
     }
@@ -243,5 +249,22 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     public String getDashboard(String gatewayId,String type) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).getDashboard(gateway,type); //type: Portal,MCP,API
+    }
+
+    private Specification<Gateway> buildGatewaySpec(QueryGatewayParam param) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (param != null && param.getGatewayType() != null) {
+                predicates.add(cb.equal(root.get("gatewayType"), param.getGatewayType()));
+            }
+
+            String adminId = contextHolder.getUser();
+            if (StrUtil.isNotBlank(adminId)) {
+                predicates.add(cb.equal(root.get("adminId"), adminId));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 }

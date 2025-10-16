@@ -40,7 +40,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
     Page<Product> findByProductIdIn(Collection<String> productIds, Pageable pageable);
 
-    List<Product>  findByProductIdIn(Collection<String> productIds);
+    List<Product> findByProductIdIn(Collection<String> productIds);
 
     Page<Product> findByAdminId(String adminId, Pageable pageable);
 

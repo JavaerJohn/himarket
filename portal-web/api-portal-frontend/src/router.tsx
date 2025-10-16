@@ -20,8 +20,8 @@ export function Router() {
       <Route path="/getting-started" element={<GettingStarted />} />
       <Route path="/apis" element={<Apis />} />
       <Route path="/apis/:id" element={<ApiDetail />} />
-      <Route path="/consumers" element={<Consumers />} />
       <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />
+      <Route path="/consumers" element={<Consumers />} />
       <Route path="/mcp" element={<Mcp />} />
       <Route path="/mcp/:mcpName" element={<McpDetail />} />
       <Route path="/login" element={<Login />} />

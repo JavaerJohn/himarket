@@ -20,12 +20,10 @@
 package com.alibaba.apiopenplatform.controller;
 
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
+import com.alibaba.apiopenplatform.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.apiopenplatform.dto.params.product.*;
 import com.alibaba.apiopenplatform.dto.params.product.CreateProductRefParam;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
-import com.alibaba.apiopenplatform.dto.result.ProductPublicationResult;
-import com.alibaba.apiopenplatform.dto.result.ProductRefResult;
-import com.alibaba.apiopenplatform.dto.result.ProductResult;
+import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -56,13 +54,7 @@ public class ProductController {
     @GetMapping
     public PageResult<ProductResult> listProducts(QueryProductParam param,
                                                   Pageable pageable) {
-        log.info("zhaoh-test-listProducts-start");
-        long startTime = System.currentTimeMillis();
-        PageResult<ProductResult> productResultPageResult = productService.listProducts(param, pageable);
-        long endTime = System.currentTimeMillis();
-        log.info("zhaoh-test-listProducts-end, cost: {} ms", (endTime - startTime));
-
-        return productResultPageResult;
+        return productService.listProducts(param, pageable);
     }
 
     @Operation(summary = "获取API产品详情")
@@ -130,5 +122,15 @@ public class ProductController {
     @GetMapping("/{productId}/dashboard")
     public String getProductDashboard(@PathVariable String productId) {
         return productService.getProductDashboard(productId);
+    }
+
+    @Operation(summary = "获取产品的订阅列表")
+    @GetMapping("/{productId}/subscriptions")
+    @AdminOrDeveloperAuth
+    public PageResult<SubscriptionResult> listProductSubscriptions(
+            @PathVariable String productId,
+            QueryProductSubscriptionParam param,
+            Pageable pageable) {
+        return productService.listProductSubscriptions(productId, param, pageable);
     }
 }

@@ -478,7 +478,7 @@ export default function ApiProducts() {
                 onChange={handlePaginationChange}
                 showSizeChanger
                 showQuickJumper
-                showTotal={(total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`}
+                showTotal={(total) => `共 ${total} 条`}
                 pageSizeOptions={['6', '12', '24', '48']}
               />
             </div>

@@ -20,6 +20,7 @@
 package com.alibaba.apiopenplatform.controller;
 
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
+import com.alibaba.apiopenplatform.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.apiopenplatform.dto.params.portal.*;
 import com.alibaba.apiopenplatform.dto.result.PageResult;
 import com.alibaba.apiopenplatform.dto.result.PortalResult;
@@ -91,8 +92,8 @@ public class PortalController {
     @Operation(summary = "获取门户上的API产品订阅列表")
     @GetMapping("/{portalId}/subscriptions")
     public PageResult<SubscriptionResult> listSubscriptions(@PathVariable String portalId,
-                                                           com.alibaba.apiopenplatform.dto.params.consumer.QuerySubscriptionParam param,
-                                                           Pageable pageable) {
+                                                            QuerySubscriptionParam param,
+                                                            Pageable pageable) {
         return portalService.listSubscriptions(portalId, param, pageable);
     }
 

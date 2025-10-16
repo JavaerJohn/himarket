@@ -300,7 +300,7 @@ function McpDetail() {
       <Row gutter={24}>
         {/* 左侧内容 */}
         <Col span={15}>
-          <Card className="mb-6">
+          <Card className="mb-6 rounded-lg border-gray-200">
             <Tabs
               defaultActiveKey="overview"
               items={[
@@ -539,7 +539,7 @@ function McpDetail() {
         {/* 右侧连接指导 */}
         <Col span={9}>
           {mcpConfig && (
-            <Card className="mb-6">
+            <Card className="mb-6 rounded-lg border-gray-200">
               <div className="mb-4">
                 <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
                 <Tabs

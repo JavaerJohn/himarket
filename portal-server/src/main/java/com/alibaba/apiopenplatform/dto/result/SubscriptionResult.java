@@ -39,6 +39,8 @@ public class SubscriptionResult implements OutputConverter<SubscriptionResult, P
 
     private String productName;
 
+    private String consumerName;
+
     private LocalDateTime createAt;
 
     private LocalDateTime updatedAt;

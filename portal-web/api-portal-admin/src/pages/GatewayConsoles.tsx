@@ -15,21 +15,17 @@ export default function Consoles() {
   const [higressImportVisible, setHigressImportVisible] = useState(false)
   const [selectedGatewayType, setSelectedGatewayType] = useState<GatewayType>('APIG_API')
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<GatewayType>('HIGRESS')
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
   })
 
-  // 按类型分组的网关列表
-  const apigApiGateways = gateways.filter(g => g.gatewayType === 'APIG_API')
-  const apigAiGateways = gateways.filter(g => g.gatewayType === 'APIG_AI')
-  const higressGateways = gateways.filter(g => g.gatewayType === 'HIGRESS')
-  const adpAiGateways = gateways.filter(g => g.gatewayType === 'ADP_AI_GATEWAY')
-  const fetchGatewaysConsoles = useCallback(async (page = 1, size = 10) => {
+  const fetchGatewaysByType = useCallback(async (gatewayType: GatewayType, page = 1, size = 10) => {
     setLoading(true)
     try {
-      const res = await gatewayApi.getGateways({ page, size })
+      const res = await gatewayApi.getGateways({ gatewayType, page, size })
       setGateways(res.data?.content || [])
       setPagination({
         current: page,
@@ -44,12 +40,12 @@ export default function Consoles() {
   }, [])
 
   useEffect(() => {
-    fetchGatewaysConsoles(1, 10)
-  }, [fetchGatewaysConsoles])
+    fetchGatewaysByType(activeTab, 1, 10)
+  }, [fetchGatewaysByType, activeTab])
 
   // 处理导入成功
   const handleImportSuccess = () => {
-    fetchGatewaysConsoles(pagination.current, pagination.pageSize)
+    fetchGatewaysByType(activeTab, pagination.current, pagination.pageSize)
   }
 
   // 处理网关类型选择
@@ -65,7 +61,15 @@ export default function Consoles() {
 
   // 处理分页变化
   const handlePaginationChange = (page: number, pageSize: number) => {
-    fetchGatewaysConsoles(page, pageSize)
+    fetchGatewaysByType(activeTab, page, pageSize)
+  }
+
+  // 处理Tab切换
+  const handleTabChange = (tabKey: string) => {
+    const gatewayType = tabKey as GatewayType
+    setActiveTab(gatewayType)
+    // Tab切换时重置到第一页
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   const handleDeleteGateway = async (gatewayId: string) => {
@@ -76,7 +80,7 @@ export default function Consoles() {
         try {
           await gatewayApi.deleteGateway(gatewayId)
           message.success('删除成功')
-          fetchGatewaysConsoles(pagination.current, pagination.pageSize)
+          fetchGatewaysByType(activeTab, pagination.current, pagination.pageSize)
         } catch (error) {
           // message.error('删除失败')
         }
@@ -87,14 +91,19 @@ export default function Consoles() {
   // APIG 网关的列定义
   const apigColumns = [
     {
-      title: '网关ID',
-      dataIndex: 'gatewayId',
-      key: 'gatewayId',
-    },
-    {
-      title: '网关名称',
-      dataIndex: 'gatewayName',
-      key: 'gatewayName',
+      title: '网关名称/ID',
+      key: 'nameAndId',
+      width: 280,
+      render: (_: any, record: Gateway) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900 truncate">
+            {record.gatewayName}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {record.gatewayId}
+          </div>
+        </div>
+      ),
     },
     {
       title: '区域',
@@ -122,16 +131,20 @@ export default function Consoles() {
   // 专有云 AI 网关的列定义
   const adpAiColumns = [
     {
-      title: '网关ID',
-      dataIndex: 'gatewayId',
-      key: 'gatewayId',
+      title: '网关名称/ID',
+      key: 'nameAndId',
+      width: 280,
+      render: (_: any, record: Gateway) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900 truncate">
+            {record.gatewayName}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {record.gatewayId}
+          </div>
+        </div>
+      ),
     },
-    {
-      title: '网关名称',
-      dataIndex: 'gatewayName',
-      key: 'gatewayName',
-    },
-    
     {
       title: '创建时间',
       dataIndex: 'createAt',
@@ -150,14 +163,19 @@ export default function Consoles() {
   // Higress 网关的列定义
   const higressColumns = [
     {
-      title: '网关ID',
-      dataIndex: 'gatewayId',
-      key: 'gatewayId',
-    },
-    {
-      title: '网关名称',
-      dataIndex: 'gatewayName',
-      key: 'gatewayName',
+      title: '网关名称/ID',
+      key: 'nameAndId',
+      width: 280,
+      render: (_: any, record: Gateway) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900 truncate">
+            {record.gatewayName}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {record.gatewayId}
+          </div>
+        </div>
+      ),
     },
     {
       title: '服务地址',
@@ -205,25 +223,32 @@ export default function Consoles() {
       </div>
 
       <Tabs
-        defaultActiveKey="HIGRESS"
+        activeKey={activeTab}
+        onChange={handleTabChange}
         items={[
           {
             key: 'HIGRESS',
             label: 'Higress 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="px-6 py-4 border-b border-gray-200">
+                <div className="py-4 pl-4 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">Higress 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">Higress 云原生网关</p>
                 </div>
                 <Table
                   columns={higressColumns}
-                  dataSource={higressGateways}
+                  dataSource={gateways}
                   rowKey="gatewayId"
                   loading={loading}
-                  pagination={false}
-                  locale={{
-                    emptyText: '暂无 Higress 网关实例'
+                  pagination={{
+                    current: pagination.current,
+                    pageSize: pagination.pageSize,
+                    total: pagination.total,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    onChange: handlePaginationChange,
+                    onShowSizeChange: handlePaginationChange,
                   }}
                 />
               </div>
@@ -234,18 +259,24 @@ export default function Consoles() {
             label: 'API 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="px-6 py-4 border-b border-gray-200">
+                <div className="py-4 pl-4 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">API 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">阿里云 API 网关服务</p>
                 </div>
                 <Table
                   columns={apigColumns}
-                  dataSource={apigApiGateways}
+                  dataSource={gateways}
                   rowKey="gatewayId"
                   loading={loading}
-                  pagination={false}
-                  locale={{
-                    emptyText: '暂无 API 网关实例'
+                  pagination={{
+                    current: pagination.current,
+                    pageSize: pagination.pageSize,
+                    total: pagination.total,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    onChange: handlePaginationChange,
+                    onShowSizeChange: handlePaginationChange,
                   }}
                 />
               </div>
@@ -256,18 +287,24 @@ export default function Consoles() {
             label: 'AI 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="px-6 py-4 border-b border-gray-200">
+                <div className="py-4 pl-4 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">AI 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">阿里云 AI 网关服务</p>
                 </div>
                 <Table
                   columns={apigColumns}
-                  dataSource={apigAiGateways}
+                  dataSource={gateways}
                   rowKey="gatewayId"
                   loading={loading}
-                  pagination={false}
-                  locale={{
-                    emptyText: '暂无 AI 网关实例'
+                  pagination={{
+                    current: pagination.current,
+                    pageSize: pagination.pageSize,
+                    total: pagination.total,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    onChange: handlePaginationChange,
+                    onShowSizeChange: handlePaginationChange,
                   }}
                 />
               </div>
@@ -278,24 +315,29 @@ export default function Consoles() {
             label: '专有云 AI 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="px-6 py-4 border-b border-gray-200">
+                <div className="py-4 pl-4 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">AI 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">专有云 AI 网关服务</p>
                 </div>
                 <Table
                   columns={adpAiColumns}
-                  dataSource={adpAiGateways}
+                  dataSource={gateways}
                   rowKey="gatewayId"
                   loading={loading}
-                  pagination={false}
-                  locale={{
-                    emptyText: '暂无 专有云 AI 网关实例'
+                  pagination={{
+                    current: pagination.current,
+                    pageSize: pagination.pageSize,
+                    total: pagination.total,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    onChange: handlePaginationChange,
+                    onShowSizeChange: handlePaginationChange,
                   }}
                 />
               </div>
             ),
           },
-          
         ]}
       />
 
