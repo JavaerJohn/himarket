@@ -13,7 +13,9 @@ import {
 } from "antd";
 import { CameraOutlined } from "@ant-design/icons";
 import { apiProductApi } from "@/lib/api";
+import { getProductCategories } from "@/lib/productCategoryApi";
 import type { ApiProduct } from "@/types/api-product";
+import type { ProductCategory } from "@/types/product-category";
 
 interface ApiProductFormModalProps {
   visible: boolean;
@@ -36,10 +38,24 @@ export default function ApiProductFormModal({
   const [previewImage, setPreviewImage] = useState("");
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [iconMode, setIconMode] = useState<'BASE64' | 'URL'>('URL');
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const isEditMode = !!productId;
+
+  // 获取产品类别列表
+  const fetchProductCategories = async () => {
+    try {
+      const response = await getProductCategories();
+      setProductCategories(response.data.content || []);
+    } catch (error) {
+      console.error("获取产品类别失败:", error);
+      message.error("获取产品类别失败");
+    }
+  };
 
   // 初始化时加载已有数据
   useEffect(() => {
+    fetchProductCategories();
+    
     if (visible && isEditMode && initialData && initialData.name) {
       setTimeout(() => {
         // 1. 先设置所有字段
@@ -93,6 +109,16 @@ export default function ApiProductFormModal({
             form.setFieldsValue({ icon: base64Data });
           }
         }
+      }
+      
+      // 获取产品已关联的类别
+      if (initialData.productId) {
+        apiProductApi.getProductCategories(initialData.productId).then((response) => {
+          const categoryIds = response.data.map((category: any) => category.categoryId);
+          form.setFieldsValue({ categories: categoryIds });
+        }).catch((error) => {
+          console.error("获取产品关联类别失败:", error);
+        });
       }
     } else if (visible && !isEditMode) {
       // 新建模式下清空表单
@@ -155,7 +181,7 @@ export default function ApiProductFormModal({
       const values = await form.validateFields();
       setLoading(true);
 
-      const { icon, iconUrl, ...otherValues } = values;
+      const { icon, iconUrl, categories, ...otherValues } = values;
 
       if (isEditMode) {
         let params = { ...otherValues };
@@ -176,7 +202,13 @@ export default function ApiProductFormModal({
           delete params.icon;
         }
         
+        // 将类别信息合并到参数中
+        if (categories) {
+          params.categories = categories;
+        }
+        
         await apiProductApi.updateApiProduct(productId!, params);
+        
         message.success("API Product 更新成功");
       } else {
         let params = { ...otherValues };
@@ -194,7 +226,13 @@ export default function ApiProductFormModal({
           };
         }
         
+        // 将类别信息合并到参数中
+        if (categories) {
+          params.categories = categories;
+        }
+        
         await apiProductApi.createApiProduct(params);
+        
         message.success("API Product 创建成功");
       }
 
@@ -242,6 +280,73 @@ export default function ApiProductFormModal({
           <Select placeholder="请选择类型">
             <Select.Option value="REST_API">REST API</Select.Option>
             <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          label="产品类别"
+          name="categories"
+          tooltip="选择适合的类别，帮助用户更好地发现您的产品"
+        >
+          <Select
+            mode="multiple"
+            placeholder="请选择产品类别（可多选）"
+            maxTagCount={3}
+            maxTagTextLength={10}
+            optionLabelProp="label"
+            filterOption={(input, option) =>
+              (option?.searchText || '').toLowerCase().includes(input.toLowerCase())
+            }
+          >
+            {productCategories.map(category => {
+              // 渲染图标
+              let iconElement = null;
+              if (category.icon) {
+                if (category.icon.type === 'URL') {
+                  iconElement = (
+                    <img 
+                      src={category.icon.value} 
+                      alt="" 
+                      className="w-4 h-4 mr-2 rounded" 
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  );
+                } else if (category.icon.value.length <= 10 && /\p{Emoji}/u.test(category.icon.value)) {
+                  iconElement = <span className="mr-2">{category.icon.value}</span>;
+                } else {
+                  iconElement = (
+                    <img 
+                      src={category.icon.value} 
+                      alt="" 
+                      className="w-4 h-4 mr-2 rounded" 
+                    />
+                  );
+                }
+              }
+
+              return (
+                <Select.Option
+                  key={category.categoryId}
+                  value={category.categoryId}
+                  label={category.name}
+                  searchText={`${category.name} ${category.description || ''}`}
+                >
+                  <div className="flex items-center">
+                    {iconElement}
+                    <div>
+                      <div className="font-medium">{category.name}</div>
+                      {category.description && (
+                        <div className="text-xs text-gray-500 truncate">
+                          {category.description}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Select.Option>
+              );
+            })}
           </Select>
         </Form.Item>
 

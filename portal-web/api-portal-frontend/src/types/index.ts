@@ -33,7 +33,6 @@ export interface ApiProduct {
   name: string;
   description: string;
   type: 'REST_API' | 'MCP_SERVER';
-  category: string;
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
   createdAt?: string; // 兼容字段
@@ -43,6 +42,7 @@ export interface ApiProduct {
   mcpConfig?: ApiProductMcpConfig;
   document?: string;
   icon?: ProductIcon | null;
+  categories?: ProductCategoryData[];
   // 向后兼容
   apiSpec?: string;
 }
@@ -59,6 +59,14 @@ export const ProductStatus = {
   DISABLE: 'DISABLE',
 } as const;
 export type ProductStatus = typeof ProductStatus[keyof typeof ProductStatus];
+
+// 产品类别接口
+export interface ProductCategoryData {
+  categoryId: string;
+  name: string;
+  description?: string;
+  icon?: ProductIcon;
+}
 
 // 产品分类
 export const ProductCategory = {
@@ -79,12 +87,12 @@ export interface BaseProduct {
   type: ProductType;
   document: string | null;
   icon: ProductIcon | null;
-  category: ProductCategory;
   productType: ProductType;
   productName: string;
   mcpConfig: any;
   updatedAt: string;
   lastUpdated: string;
+  categories?: ProductCategoryData[];
 }
 
 // REST API 产品

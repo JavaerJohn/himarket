@@ -19,7 +19,7 @@
 
 package com.alibaba.apiopenplatform.dto.result;
 
-import lombok.Builder;
+import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
 import lombok.Data;
 import lombok.Getter;
 
@@ -64,7 +64,7 @@ public class MCPConfigResult {
          * for gateway
          */
         private String path;
-        private List<Domain> domains;
+        private List<DomainResult> domains;
 
         /**
          * for nacos
@@ -72,13 +72,6 @@ public class MCPConfigResult {
         private Object rawConfig;
 
         private String transportMode = MCPTransportMode.REMOTE.getMode();
-    }
-
-    @Data
-    @Builder
-    public static class Domain {
-        private String domain;
-        private String protocol;
     }
 
     @Getter

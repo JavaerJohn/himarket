@@ -19,6 +19,7 @@
 
 package com.alibaba.apiopenplatform.support.gateway;
 
+import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import lombok.Builder;
 import lombok.Data;
@@ -33,5 +34,12 @@ public class GatewayConfig {
 
     private AdpAIGatewayConfig adpAIGatewayConfig;
 
+    private ApsaraGatewayConfig apsaraGatewayConfig;
+
     private HigressConfig higressConfig;
+    
+    /**
+     * 网关实体引用，用于获取gatewayId等信息
+     */
+    private Gateway gateway;
 }

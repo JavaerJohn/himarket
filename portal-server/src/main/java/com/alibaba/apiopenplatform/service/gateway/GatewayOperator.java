@@ -27,9 +27,11 @@ import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
 import com.alibaba.apiopenplatform.service.gateway.client.GatewayClient;
 import com.alibaba.apiopenplatform.service.gateway.client.HigressClient;
+import com.alibaba.apiopenplatform.service.gateway.client.ApsaraStackGatewayClient;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
@@ -58,11 +60,19 @@ public abstract class GatewayOperator<T> {
 
     abstract public void deleteConsumer(String consumerId, GatewayConfig config);
 
+    /**
+     * 检查消费者是否存在于网关中
+     * @param consumerId 消费者ID
+     * @param config 网关配置
+     * @return 是否存在
+     */
+    abstract public boolean isConsumerExists(String consumerId, GatewayConfig config);
+
     abstract public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig);
 
     abstract public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig);
 
-    abstract public APIResult fetchAPI(Gateway gateway, String apiId);
+    abstract public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId);
 
     abstract public GatewayType getGatewayType();
 
@@ -101,6 +111,9 @@ public abstract class GatewayOperator<T> {
             case APIG_API:
             case APIG_AI:
                 return new APIGClient(gateway.getApigConfig());
+            case APSARA_GATEWAY:
+                return new ApsaraStackGatewayClient(
+                        gateway.getApsaraGatewayConfig());
             case HIGRESS:
                 return new HigressClient(gateway.getHigressConfig());
             default:

@@ -39,6 +39,8 @@ public class Resources {
 
     public static final String PRODUCT = "Product";
 
+    public static final String PRODUCT_CATEGORY = "ProductCategory";
+
     public static final String PRODUCT_SETTING = "ProductSetting";
 
     public static final String DEVELOPER = "Developer";

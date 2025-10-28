@@ -15,6 +15,8 @@ import {
 import type { ApiProduct } from '@/types/api-product'
 import { getServiceName, formatDateTime, copyToClipboard } from '@/lib/utils'
 import { apiProductApi } from '@/lib/api'
+import { getProductCategories } from '@/lib/productCategoryApi'
+import type { ProductCategory } from '@/types/product-category'
 
 
 interface ApiProductOverviewProps {
@@ -27,14 +29,16 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
 
   const [portalCount, setPortalCount] = useState(0)
   const [subscriberCount] = useState(0)
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([])
 
   const navigate = useNavigate()
 
   useEffect(() => {
     if (apiProduct.productId) {
       fetchPublishedPortals()
+      fetchProductCategories()
     }
-  }, [apiProduct.productId])
+  }, [apiProduct.productId, apiProduct])
 
   const fetchPublishedPortals = async () => {
     try {
@@ -42,6 +46,41 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
       setPortalCount(res.data.content?.length || 0)
     } catch (error) {
     } finally {
+    }
+  }
+
+  const fetchProductCategories = async () => {
+    try {
+      // 获取产品关联的类别信息
+      const res = await apiProductApi.getProductCategories(apiProduct.productId)
+      
+      // 检查返回的数据结构，确保是数组
+      let categoriesData = res.data;
+      
+      // 如果没有关联类别，直接设置空数组
+      if (!categoriesData || categoriesData.length === 0) {
+        setProductCategories([])
+        return
+      }
+      
+      // 获取所有类别信息以显示类别名称
+      const allCategoriesRes = await getProductCategories()
+      const allCategories = allCategoriesRes.data.content || allCategoriesRes.data || []
+      
+      // 将产品关联的类别ID映射为类别名称
+      const categoriesWithNames = categoriesData.map((category: any) => {
+        // 处理不同的数据格式
+        const categoryId = category.categoryId || category.id;
+        const fullCategoryInfo = allCategories.find((c: ProductCategory) => 
+          (c.categoryId === categoryId) || (c.id === categoryId)
+        )
+        return fullCategoryInfo || category
+      })
+      
+      setProductCategories(categoriesWithNames)
+    } catch (error) {
+      console.error('获取产品类别失败:', error)
+      setProductCategories([])
     }
   }
 
@@ -67,16 +106,15 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
         }
       >
         <div>
-            <div className="grid grid-cols-6 gap-8 items-center pt-0 pb-2">
+            <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
              <span className="text-xs text-gray-600">产品名称:</span>
              <span className="col-span-2 text-xs text-gray-900">{apiProduct.name}</span>
              <span className="text-xs text-gray-600">产品ID:</span>
               <div className="col-span-2 flex items-center gap-2">
                 <span className="text-xs text-gray-700">{apiProduct.productId}</span>
-                <Button 
-                  type="text" 
-                  size="small"
-                  icon={<CopyOutlined />}
+                <CopyOutlined 
+                  className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors ml-1" 
+                  style={{ fontSize: '12px' }}
                   onClick={async () => {
                     try {
                       await copyToClipboard(apiProduct.productId);
@@ -85,7 +123,6 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                       message.error('复制失败，请手动复制');
                     }
                   }}
-                  className="h-auto p-1 min-w-0"
                 />
               </div>
             </div>
@@ -124,6 +161,31 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               </div>
               <span className="text-xs text-gray-600">创建时间:</span>
               <span className="col-span-2 text-xs text-gray-700">{formatDateTime(apiProduct.createAt)}</span>
+            </div>
+            
+            <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+              <span className="text-xs text-gray-600">产品类别:</span>
+              <div className="col-span-5 text-xs text-gray-900">
+                {productCategories && productCategories.length > 0 ? (
+                  <span>
+                    {productCategories.map((category, index) => (
+                      <span key={category.categoryId}>
+                        <span 
+                          className="text-gray-900 hover:text-blue-600 cursor-pointer hover:underline transition-colors"
+                          onClick={() => navigate(`/product-categories/${category.categoryId}`)}
+                        >
+                          {category.name}
+                        </span>
+                        {index < productCategories.length - 1 && (
+                          <span className="text-gray-400 mx-2">|</span>
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </div>
             </div>
 
             {apiProduct.description && (

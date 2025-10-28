@@ -199,4 +199,12 @@ export function developerLogout(): Promise<void> {
   return api.post('/developers/logout');
 }
 
+// API调用方法封装
+export const categoryApi = {
+  // 获取指定产品类型下的类别列表
+  getCategoriesByProductType: (productType: string) => {
+    return api.get(`/product-categories?productType=${productType}&size=1000`)
+  }
+}
+
 export default api 

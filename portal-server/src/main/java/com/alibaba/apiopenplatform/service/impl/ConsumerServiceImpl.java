@@ -130,13 +130,39 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public void deleteConsumer(String consumerId) {
         Consumer consumer = contextHolder.isDeveloper() ? findDevConsumer(consumerId) : findConsumer(consumerId);
-        // 订阅
+        
+        // 1. 先解除所有产品的授权
+        List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
+        for (ProductSubscription subscription : subscriptions) {
+            try {
+                // 如果订阅有授权配置，需要先解除授权
+                if (subscription.getConsumerAuthConfig() != null) {
+                    ProductRefResult productRef = productService.getProductRef(subscription.getProductId());
+                    if (productRef != null) {
+                        GatewayConfig gatewayConfig = gatewayService.getGatewayConfig(productRef.getGatewayId());
+                        ConsumerRef consumerRef = matchConsumerRef(consumerId, gatewayConfig);
+                        if (consumerRef != null) {
+                            gatewayService.revokeConsumerAuthorization(
+                                productRef.getGatewayId(), 
+                                consumerRef.getGwConsumerId(), 
+                                subscription.getConsumerAuthConfig()
+                            );
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("revoke consumer authorization error, consumerId: {}, productId: {}", 
+                    consumerId, subscription.getProductId(), e);
+            }
+        }
+        
+        // 2. 删除订阅记录
         subscriptionRepository.deleteAllByConsumerId(consumerId);
 
-        // 凭证
+        // 3. 删除凭证
         credentialRepository.deleteAllByConsumerId(consumerId);
 
-        // 删除网关上的Consumer
+        // 4. 删除网关上的Consumer
         List<ConsumerRef> consumerRefs = consumerRefRepository.findAllByConsumerId(consumerId);
         for (ConsumerRef consumerRef : consumerRefs) {
             try {
@@ -145,7 +171,11 @@ public class ConsumerServiceImpl implements ConsumerService {
                 log.error("deleteConsumer gatewayConsumer error, gwConsumerId: {}", consumerRef.getGwConsumerId(), e);
             }
         }
+        
+        // 5. 删除ConsumerRef记录
+        consumerRefRepository.deleteAll(consumerRefs);
 
+        // 6. 最后删除Consumer本身
         consumerRepository.delete(consumer);
     }
 
@@ -475,22 +505,58 @@ public class ConsumerServiceImpl implements ConsumerService {
     private ConsumerAuthConfig authorizeConsumer(Consumer consumer, ConsumerCredential credential, ProductRefResult productRef) {
         GatewayConfig gatewayConfig = gatewayService.getGatewayConfig(productRef.getGatewayId());
 
-        // 是否在网关上有对应的Consumer
-        String gwConsumerId = Optional.ofNullable(matchConsumerRef(consumer.getConsumerId(), gatewayConfig))
-                .map(ConsumerRef::getGwConsumerId)
-                .orElseGet(() -> {
-                    String newGwConsumerId = gatewayService.createConsumer(consumer, credential, gatewayConfig);
-                    consumerRefRepository.save(ConsumerRef.builder()
-                            .consumerId(consumer.getConsumerId())
-                            .gwConsumerId(newGwConsumerId)
-                            .gatewayType(gatewayConfig.getGatewayType())
-                            .gatewayConfig(gatewayConfig)
-                            .build());
-                    return newGwConsumerId;
-                });
+        // 检查是否在网关上有对应的Consumer
+        ConsumerRef existingConsumerRef = matchConsumerRef(consumer.getConsumerId(), gatewayConfig);
+        String gwConsumerId;
+        
+        if (existingConsumerRef != null) {
+            // 如果存在ConsumerRef记录，需要检查实际网关中是否还存在该消费者
+            gwConsumerId = existingConsumerRef.getGwConsumerId();
+            
+            // 检查实际网关中是否还存在该消费者
+            if (!isConsumerExistsInGateway(gwConsumerId, gatewayConfig)) {
+                log.warn("网关中的消费者已被删除，需要重新创建: gwConsumerId={}, gatewayType={}", 
+                    gwConsumerId, gatewayConfig.getGatewayType());
+                
+                // 删除过期的ConsumerRef记录
+                consumerRefRepository.delete(existingConsumerRef);
+                
+                // 重新创建消费者
+                gwConsumerId = gatewayService.createConsumer(consumer, credential, gatewayConfig);
+                consumerRefRepository.save(ConsumerRef.builder()
+                        .consumerId(consumer.getConsumerId())
+                        .gwConsumerId(gwConsumerId)
+                        .gatewayType(gatewayConfig.getGatewayType())
+                        .gatewayConfig(gatewayConfig)
+                        .build());
+            }
+        } else {
+            // 如果不存在ConsumerRef记录，直接创建新的消费者
+            gwConsumerId = gatewayService.createConsumer(consumer, credential, gatewayConfig);
+            consumerRefRepository.save(ConsumerRef.builder()
+                    .consumerId(consumer.getConsumerId())
+                    .gwConsumerId(gwConsumerId)
+                    .gatewayType(gatewayConfig.getGatewayType())
+                    .gatewayConfig(gatewayConfig)
+                    .build());
+        }
 
         // 授权
         return gatewayService.authorizeConsumer(productRef.getGatewayId(), gwConsumerId, productRef);
+    }
+
+    /**
+     * 检查消费者是否在实际网关中存在
+     */
+    private boolean isConsumerExistsInGateway(String gwConsumerId, GatewayConfig gatewayConfig) {
+        try {
+            return gatewayService.isConsumerExists(gwConsumerId, gatewayConfig);
+        } catch (Exception e) {
+            log.warn("检查网关消费者存在性失败: gwConsumerId={}, gatewayType={}", 
+                gwConsumerId, gatewayConfig.getGatewayType(), e);
+            // 如果检查失败，默认认为存在，避免无谓的重新创建
+            return true;
+        }
     }
 
     @EventListener

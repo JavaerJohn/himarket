@@ -1,12 +1,14 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
-import { Badge, Button, Card, Dropdown, Modal, message, Pagination, Skeleton, Input, Select, Tag, Space } from 'antd';
+import { Button, Card, Dropdown, Modal, message, Pagination, Skeleton, Input, Select, Tag, Space } from 'antd';
 import type { ApiProduct, ProductIcon } from '@/types/api-product';
-import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined } from '@ant-design/icons';
+import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined } from '@ant-design/icons';
 import McpServerIcon from '@/components/icons/McpServerIcon';
 import { apiProductApi } from '@/lib/api';
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
+import { getProductCategories } from '@/lib/productCategoryApi';
+import type { ProductCategory } from '@/types/product-category';
 
 // 优化的产品卡片组件
 const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
@@ -26,10 +28,16 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
           const src = icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`;
           return <img src={src} alt="icon" style={{ borderRadius: '8px', minHeight: '40px', width: '40px', height: '40px', objectFit: 'cover' }} />
         default:
-          return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+          return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : 
+                 type === "AGENT_API" ? <RobotOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
+                 type === "MODEL_API" ? <BulbOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
+                 <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
       }
     } else {
-      return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+      return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : 
+             type === "AGENT_API" ? <RobotOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
+             type === "MODEL_API" ? <BulbOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
+             <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
     }
   }
 
@@ -77,6 +85,16 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
     },
   ]
 
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'REST_API': return 'REST API';
+      case 'MCP_SERVER': return 'MCP Server';
+      case 'AGENT_API': return 'Agent API';
+      case 'MODEL_API': return 'Model API';
+      default: return type;
+    }
+  };
+
   return (
     <Card
       className="hover:shadow-lg transition-shadow cursor-pointer rounded-xl border border-gray-200 shadow-sm hover:border-blue-300"
@@ -91,15 +109,18 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
           <div>
             <h3 className="text-lg font-semibold">{product.name}</h3>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
-              {product.category && <Badge color="green" text={product.category} />}
               <div className="flex items-center">
                 {product.type === "REST_API" ? (
                   <ApiOutlined className="text-blue-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                ) : product.type === "AGENT_API" ? (
+                  <RobotOutlined className="text-orange-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                ) : product.type === "MODEL_API" ? (
+                  <BulbOutlined className="text-purple-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 ) : (
                   <McpServerIcon className="text-black mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 )}
                 <span className="text-xs text-gray-700">
-                  {product.type === "REST_API" ? "REST API" : "MCP Server"}
+                  {getTypeLabel(product.type)}
                 </span>
               </div>
               <div className="flex items-center">
@@ -141,7 +162,7 @@ ProductCard.displayName = 'ProductCard'
 export default function ApiProducts() {
   const navigate = useNavigate();
   const [apiProducts, setApiProducts] = useState<ApiProduct[]>([]);
-  const [filters, setFilters] = useState<{ type?: string, name?: string }>({});
+  const [filters, setFilters] = useState<{ type?: string, name?: string, categoryIds?: string }>({});
   const [loading, setLoading] = useState(true); // 初始状态为 loading
   const [pagination, setPagination] = useState({
     current: 1,
@@ -151,13 +172,25 @@ export default function ApiProducts() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
 
   // 搜索状态
   const [searchValue, setSearchValue] = useState('');
-  const [searchType, setSearchType] = useState<'name' | 'type'>('name');
+  const [searchType, setSearchType] = useState<'name' | 'type' | 'category'>('name');
   const [activeFilters, setActiveFilters] = useState<Array<{ type: string; value: string; label: string }>>([]);
 
-  const fetchApiProducts = useCallback((page = 1, size = 12, queryFilters?: { type?: string, name?: string }) => {
+  // 获取产品类别列表
+  const fetchProductCategories = async () => {
+    try {
+      const response = await getProductCategories();
+      setProductCategories(response.data.content || []);
+    } catch (error) {
+      console.error("获取产品类别失败:", error);
+      message.error("获取产品类别失败");
+    }
+  };
+
+  const fetchApiProducts = useCallback((page = 1, size = 12, queryFilters?: { type?: string, name?: string, categoryIds?: string }) => {
     setLoading(true);
     const params = { page, size, ...(queryFilters || {}) };
     apiProductApi.getApiProducts(params).then((res: any) => {
@@ -175,18 +208,22 @@ export default function ApiProducts() {
 
   useEffect(() => {
     fetchApiProducts(1, 12);
+    fetchProductCategories();
   }, []); // 只在组件初始化时执行一次
 
   // 产品类型选项
   const typeOptions = [
     { label: 'REST API', value: 'REST_API' },
     { label: 'MCP Server', value: 'MCP_SERVER' },
+    { label: 'Agent API', value: 'AGENT_API' },
+    { label: 'Model API', value: 'MODEL_API' },
   ];
 
   // 搜索类型选项
   const searchTypeOptions = [
     { label: '产品名称', value: 'name' as const },
     { label: '产品类型', value: 'type' as const },
+    { label: '产品类别', value: 'category' as const },
   ];
 
   // 搜索处理函数
@@ -197,9 +234,14 @@ export default function ApiProducts() {
       
       if (searchType === 'name') {
         labelText = `产品名称：${searchValue.trim()}`;
-      } else {
+      } else if (searchType === 'type') {
         const typeLabel = typeOptions.find(opt => opt.value === searchValue.trim())?.label || searchValue.trim();
         labelText = `产品类型：${typeLabel}`;
+      } else if (searchType === 'category') {
+        const categoryLabel = productCategories.find(cat => cat.categoryId === searchValue)?.name || searchValue.trim();
+        labelText = `产品类别：${categoryLabel}`;
+        // 对于类别搜索，使用 categoryIds 作为参数名
+        filterValue = searchValue.trim();
       }
       
       const newFilter = { type: searchType, value: filterValue, label: labelText };
@@ -207,10 +249,13 @@ export default function ApiProducts() {
       updatedFilters.push(newFilter);
       setActiveFilters(updatedFilters);
       
-      const filters: { type?: string, name?: string } = {};
+      const filters: { type?: string, name?: string, categoryIds?: string } = {};
       updatedFilters.forEach(filter => {
         if (filter.type === 'type' || filter.type === 'name') {
           filters[filter.type] = filter.value;
+        } else if (filter.type === 'category') {
+          // 类别筛选使用 categoryIds 作为参数名
+          filters.categoryIds = filter.value;
         }
       });
       
@@ -225,10 +270,13 @@ export default function ApiProducts() {
     const updatedFilters = activeFilters.filter(f => f.type !== filterType);
     setActiveFilters(updatedFilters);
     
-    const newFilters: { type?: string, name?: string } = {};
+    const newFilters: { type?: string, name?: string, categoryIds?: string } = {};
     updatedFilters.forEach(filter => {
       if (filter.type === 'type' || filter.type === 'name') {
         newFilters[filter.type] = filter.value;
+      } else if (filter.type === 'category') {
+        // 类别筛选使用 categoryIds 作为参数名
+        newFilters.categoryIds = filter.value;
       }
     });
     
@@ -297,19 +345,18 @@ export default function ApiProducts() {
       {/* 搜索和筛选 */}
       <div className="space-y-4">
         {/* 搜索框 */}
-        <div className="flex items-center max-w-xl">
+        <div className="flex max-w-xl border border-gray-300 rounded-md overflow-hidden hover:border-blue-500 focus-within:border-blue-500 focus-within:shadow-sm">
           {/* 左侧：搜索类型选择器 */}
           <Select
             value={searchType}
             onChange={setSearchType}
             style={{ 
               width: 120,
-              borderTopRightRadius: 0,
-              borderBottomRightRadius: 0,
               backgroundColor: '#f5f5f5',
             }}
-            className="h-10"
+            className="h-10 border-0 rounded-none"
             size="large"
+            variant="borderless"
           >
             {searchTypeOptions.map(option => (
               <Select.Option key={option.value} value={option.value}>
@@ -317,6 +364,9 @@ export default function ApiProducts() {
               </Select.Option>
             ))}
           </Select>
+
+          {/* 分隔线 */}
+          <div className="w-px bg-gray-300 self-stretch"></div>
 
           {/* 中间：搜索值输入框或选择框 */}
           {searchType === 'type' ? (
@@ -334,10 +384,13 @@ export default function ApiProducts() {
                   updatedFilters.push(newFilter);
                   setActiveFilters(updatedFilters);
                   
-                  const filters: { type?: string, name?: string } = {};
+                  const filters: { type?: string, name?: string, categoryIds?: string } = {};
                   updatedFilters.forEach(filter => {
                     if (filter.type === 'type' || filter.type === 'name') {
                       filters[filter.type] = filter.value;
+                    } else if (filter.type === 'category') {
+                      // 类别筛选使用 categoryIds 作为参数名
+                      filters.categoryIds = filter.value;
                     }
                   });
                   
@@ -348,19 +401,61 @@ export default function ApiProducts() {
               }}
               style={{ 
                 flex: 1,
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
               }}
               allowClear
               onClear={clearAllFilters}
-              className="h-10"
+              className="h-10 border-0 rounded-none"
               size="large"
+              variant="borderless"
             >
               {typeOptions.map(option => (
                 <Select.Option key={option.value} value={option.value}>
                   {option.label}
+                </Select.Option>
+              ))}
+            </Select>
+          ) : searchType === 'category' ? (
+            <Select
+              placeholder="请选择产品类别"
+              value={searchValue}
+              onChange={(value) => {
+                setSearchValue(value);
+                // 对于类别选择，立即执行搜索
+                if (value) {
+                  const categoryLabel = productCategories.find(cat => cat.categoryId === value)?.name || value;
+                  const labelText = `产品类别：${categoryLabel}`;
+                  const newFilter = { type: 'category', value, label: labelText };
+                  const updatedFilters = activeFilters.filter(f => f.type !== 'category');
+                  updatedFilters.push(newFilter);
+                  setActiveFilters(updatedFilters);
+                  
+                  const filters: { type?: string, name?: string, categoryIds?: string } = {};
+                  updatedFilters.forEach(filter => {
+                    if (filter.type === 'type' || filter.type === 'name') {
+                      filters[filter.type] = filter.value;
+                    } else if (filter.type === 'category') {
+                      // 类别筛选使用 categoryIds 作为参数名
+                      filters.categoryIds = filter.value;
+                    }
+                  });
+                  
+                  setFilters(filters);
+                  fetchApiProducts(1, pagination.pageSize, filters);
+                  setSearchValue('');
+                }
+              }}
+              style={{ 
+                flex: 1,
+              }}
+              allowClear
+              onClear={clearAllFilters}
+              className="h-10 border-0 rounded-none"
+              size="large"
+              variant="borderless"
+            >
+              {productCategories.map(category => (
+                <Select.Option key={category.categoryId} value={category.categoryId}>
+                  {category.name}
                 </Select.Option>
               ))}
             </Select>
@@ -371,30 +466,29 @@ export default function ApiProducts() {
               onChange={(e) => setSearchValue(e.target.value)}
               style={{ 
                 flex: 1,
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
               }}
               onPressEnter={handleSearch}
               allowClear
               onClear={() => setSearchValue('')}
               size="large"
-              className="h-10"
+              className="h-10 border-0 rounded-none"
+              variant="borderless"
             />
           )}
+
+          {/* 分隔线 */}
+          <div className="w-px bg-gray-300 self-stretch"></div>
 
           {/* 右侧：搜索按钮 */}
           <Button
             icon={<SearchOutlined />}
             onClick={handleSearch}
             style={{
-              borderTopLeftRadius: 0,
-              borderBottomLeftRadius: 0,
               width: 48,
             }}
-            className="h-10"
+            className="h-10 border-0 rounded-none"
             size="large"
+            type="text"
           />
         </div>
 

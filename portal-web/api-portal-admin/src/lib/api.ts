@@ -183,6 +183,10 @@ export const apiProductApi = {
   // 获取API产品的Dashboard监控面板URL
   getProductDashboard: (productId: string) => {
     return api.get(`/products/${productId}/dashboard`)
+  },
+  // 获取产品关联的类别
+  getProductCategories: (productId: string) => {
+    return api.get(`/products/${productId}/categories`)
   }
 }
 
@@ -197,6 +201,10 @@ export const gatewayApi = {
     return api.get(`/gateways/apig`, { params: {
       ...data,
     } })
+  },
+  // 获取Apsara网关
+  getApsaraGateways: (data: any) => {
+    return api.post(`/gateways/apsara`, data)
   },
   // 获取ADP网关
   getAdpGateways: (data: any) => {

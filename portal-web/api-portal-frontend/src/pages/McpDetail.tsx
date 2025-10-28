@@ -12,6 +12,7 @@ import {
   Row,
   Col,
   Collapse,
+  Select,
 } from "antd";
 import { CopyOutlined } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
@@ -50,6 +51,7 @@ function McpDetail() {
   const [httpJson, setHttpJson] = useState("");
   const [sseJson, setSseJson] = useState("");
   const [localJson, setLocalJson] = useState("");
+  const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
 
   // 解析YAML配置的函数
   const parseYamlConfig = (
@@ -92,13 +94,27 @@ function McpDetail() {
     }
   };
 
+  // 格式化域名端口
+  const formatDomainWithPort = (domainStr: string, protocol: string) => {
+    const [host, port] = domainStr.split(':');
+    if (!port) return domainStr;
+
+    // 隐藏 HTTP 默认端口 80
+    if (protocol === 'http' && port === '80') return host;
+    // 隐藏 HTTPS 默认端口 443
+    if (protocol === 'https' && port === '443') return host;
+
+    return domainStr;
+  };
+
   // 生成连接配置的函数
   const generateConnectionConfig = useCallback((
     domains: Array<{ domain: string; protocol: string }> | null | undefined,
     path: string | null | undefined,
     serverName: string,
     localConfig?: unknown,
-    protocolType?: string
+    protocolType?: string,
+    domainIndex: number = 0
   ) => {
     // 互斥：优先判断本地模式
     if (localConfig) {
@@ -110,12 +126,13 @@ function McpDetail() {
     }
 
     // HTTP/SSE 模式
-    if (domains && domains.length > 0 && path) {
-      const domain = domains[0];
-      const baseUrl = `${domain.protocol}://${domain.domain}`;
+    if (domains && domains.length > 0 && path && domainIndex < domains.length) {
+      const domain = domains[domainIndex];
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.protocol);
+      const baseUrl = `${domain.protocol}://${formattedDomain}`;
       let endpoint = `${baseUrl}${path}`;
 
-      if (mcpConfig?.meta?.source === 'ADP_AI_GATEWAY') {
+      if (mcpConfig?.meta?.source === 'ADP_AI_GATEWAY' || mcpConfig?.meta?.source === 'APSARA_GATEWAY') {
         endpoint = `${baseUrl}/mcp-servers${path}`;
       }
 
@@ -223,16 +240,28 @@ function McpDetail() {
 
   // 监听 mcpConfig 变化，重新生成连接配置
   useEffect(() => {
-    if (mcpConfig) {
+    if (mcpConfig && data) {
       generateConnectionConfig(
         mcpConfig.mcpServerConfig.domains,
         mcpConfig.mcpServerConfig.path,
-        mcpConfig.mcpServerName,
+        mcpConfig.mcpServerName || data.name,
         mcpConfig.mcpServerConfig.rawConfig,
-(mcpConfig.meta as any)?.protocol
+        (mcpConfig.meta as any)?.protocol,
+        selectedDomainIndex
       );
     }
-  }, [mcpConfig, generateConnectionConfig]);
+  }, [mcpConfig, generateConnectionConfig, selectedDomainIndex, data]);
+
+  // 生成域名选项的函数
+  const getDomainOptions = (domains: Array<{ domain: string; protocol: string; networkType?: string }>) => {
+    return domains.map((domain, index) => {
+      return {
+        value: index,
+        label: `${domain.protocol}://${domain.domain}`,
+        domain: domain
+      }
+    })
+  }
 
   const handleCopy = async (text: string) => {
     try {
@@ -542,6 +571,32 @@ function McpDetail() {
             <Card className="mb-6 rounded-lg border-gray-200">
               <div className="mb-4">
                 <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+
+                {/* 域名选择器 */}
+                {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 1 && (
+                  <div className="mb-2">
+                    <Select
+                      value={selectedDomainIndex}
+                      onChange={setSelectedDomainIndex}
+                      className="w-full"
+                      placeholder="选择域名"
+                      size="middle"
+                      style={{
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {getDomainOptions(mcpConfig.mcpServerConfig.domains).map((option) => (
+                        <Select.Option key={option.value} value={option.value}>
+                          <span className="text-xs text-gray-900 font-mono">
+                            {option.label}
+                          </span>
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
+
                 <Tabs
                   size="small" 
                   defaultActiveKey={hasLocalConfig ? "local" : (sseJson ? "sse" : "http")}
@@ -562,7 +617,7 @@ function McpDetail() {
                               onClick={() => handleCopy(localJson)}
                             />
                             <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                              <pre className="whitespace-pre-wrap">{localJson}</pre>
+                              <pre className="whitespace-pre">{localJson}</pre>
                             </div>
                           </div>
                         ),
@@ -582,7 +637,7 @@ function McpDetail() {
                                 onClick={() => handleCopy(sseJson)}
                               />
                               <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre-wrap">{sseJson}</pre>
+                                <pre className="whitespace-pre">{sseJson}</pre>
                               </div>
                             </div>
                           ),
@@ -603,7 +658,7 @@ function McpDetail() {
                                 onClick={() => handleCopy(httpJson)}
                               />
                               <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre-wrap">{httpJson}</pre>
+                                <pre className="whitespace-pre">{httpJson}</pre>
                               </div>
                             </div>
                           ),

@@ -19,7 +19,6 @@
 
 package com.alibaba.apiopenplatform.dto.params.product;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.ProductRef;
 import com.alibaba.apiopenplatform.support.enums.SourceType;
@@ -28,7 +27,6 @@ import com.alibaba.apiopenplatform.support.product.HigressRefConfig;
 import com.alibaba.apiopenplatform.support.product.NacosRefConfig;
 import lombok.Data;
 
-import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.NotNull;
 
 @Data
@@ -43,8 +41,9 @@ public class CreateProductRefParam implements InputConverter<ProductRef> {
 
     private APIGRefConfig apigRefConfig;
 
-    // 新增：ADP AI 网关引用配置（与 APIGRefConfig 结构一致）
     private APIGRefConfig adpAIGatewayRefConfig;
+
+    private APIGRefConfig apsaraGatewayRefConfig;
 
     private HigressRefConfig higressRefConfig;
 

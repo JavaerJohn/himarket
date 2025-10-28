@@ -1,3 +1,5 @@
+import type { ProductCategory } from "./product-category";
+
 export interface ApiProductConfig {
   spec: string;
   meta: {
@@ -51,7 +53,7 @@ export interface NacosMCPItem {
 
 export interface APIGAIMCPItem {
   mcpServerName: string;
-  fromGatewayType: 'APIG_AI' | 'ADP_AI_GATEWAY';
+  fromGatewayType: 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY';
   mcpRouteId: string;
   mcpServerId?: string;
   apiId?: string;
@@ -70,14 +72,14 @@ export interface LinkedService {
   higressRefConfig?: HigressMCPItem;
   nacosRefConfig?: NacosMCPItem;
   adpAIGatewayRefConfig?: APIGAIMCPItem;
+  apsaraGatewayRefConfig?: APIGAIMCPItem;
 }
 
 export interface ApiProduct {
   productId: string;
   name: string;
   description: string;
-  type: 'REST_API' | 'MCP_SERVER';
-  category: string;
+  type: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
   enableConsumerAuth?: boolean;
@@ -86,4 +88,5 @@ export interface ApiProduct {
   mcpConfig?: ApiProductMcpConfig;
   document?: string;
   icon?: ProductIcon | null;
-} 
+  categories?: ProductCategory[];
+}

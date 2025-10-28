@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { Card, Tag, Typography, Input, Avatar, Skeleton } from "antd";
+const { Title, Paragraph } = Typography;
+import { FolderFilled, FolderOpenFilled } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
-import api from "../lib/api";
+import api, { categoryApi } from "../lib/api";
 import { ProductStatus } from "../types";
-import type { Product, ApiResponse, PaginatedResponse, ProductIcon } from "../types";
+import type { Product, ApiResponse, PaginatedResponse, ProductIcon, ProductCategoryData } from "../types";
 // import { getCategoryText, getCategoryColor } from "../lib/statusUtils";
 import './Test.css';
-
-const { Title, Paragraph } = Typography;
 const { Search } = Input;
 
 
@@ -20,19 +20,23 @@ interface ApiProductListItem {
   status: string;
   version: string;
   endpoints: number;
-  category: string;
   creator: string;
   icon?: ProductIcon;
+  categories: ProductCategoryData[];
   updatedAt: string;
 }
 
 function APIsPage() {
   const [loading, setLoading] = useState(false);
   const [apiProducts, setApiProducts] = useState<ApiProductListItem[]>([]);
+  const [allProducts, setAllProducts] = useState<ApiProductListItem[]>([]);
   const [searchText, setSearchText] = useState('');
+  const [categories, setCategories] = useState<ProductCategoryData[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
     fetchApiProducts();
+    fetchCategories();
   }, []);
 
   // 处理产品图标的函数
@@ -53,6 +57,19 @@ function APIsPage() {
         return fallback;
     }
   };
+  // 获取类别列表
+  const fetchCategories = async () => {
+    try {
+      const response: any = await categoryApi.getCategoriesByProductType('REST_API');
+      if (response.code === "SUCCESS" && response.data) {
+        const categoriesData = response.data.content || [];
+        setCategories(categoriesData);
+      }
+    } catch (error) {
+      console.error('获取类别列表失败:', error);
+    }
+  };
+
   const fetchApiProducts = async () => {
     setLoading(true);
     try {
@@ -66,11 +83,12 @@ function APIsPage() {
           status: item.status === ProductStatus.ENABLE ? 'active' : 'inactive',
           version: 'v1.0.0',
           endpoints: 0,
-          category: item.category,
           creator: 'Unknown',
           icon: item.icon || undefined,
+          categories: item.categories || [],
           updatedAt: item.updatedAt?.slice(0, 10) || ''
         }));
+        setAllProducts(mapped);
         setApiProducts(mapped);
       }
     } catch (error) {
@@ -81,6 +99,48 @@ function APIsPage() {
   };
 
 
+
+  // 处理类别筛选
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    if (categoryId === 'all') {
+      setApiProducts(allProducts);
+    } else {
+      const filtered = allProducts.filter(product => 
+        product.categories.some(cat => cat.categoryId === categoryId)
+      );
+      setApiProducts(filtered);
+    }
+  };
+
+  // 获取类别图标
+  const getCategoryIcon = (icon?: ProductIcon, _isSelected?: boolean, isAll?: boolean) => {
+    if (!icon || !icon.value) {
+      // "全部"使用打开的文件夹图标，其他使用普通文件夹图标
+      const IconComponent = isAll ? FolderOpenFilled : FolderFilled;
+      return <IconComponent style={{ fontSize: '18px', color: '#D1D5DB' }} />;
+    }
+    
+    let iconUrl = '';
+    if (icon.type === 'URL') {
+      iconUrl = icon.value;
+    } else if (icon.type === 'BASE64') {
+      // 处理BASE64数据，确保有正确的前缀
+      iconUrl = icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`;
+    }
+    
+    return (
+      <img 
+        src={iconUrl} 
+        alt="" 
+        style={{ width: '18px', height: '18px' }}
+        onError={(e) => {
+          // 如果图标加载失败，显示默认图标
+          e.currentTarget.style.display = 'none';
+        }}
+      />
+    );
+  };
 
   const filteredApiProducts = apiProducts.filter(product => {
     return product.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -128,31 +188,76 @@ function APIsPage() {
         </div>
       </div>
 
-      {/* APIs Section */}
+      {/* Category Tags Section */}
       <div className="mb-6">
-        <Title level={3} className="mb-4">
-          热门/推荐 APIs: {filteredApiProducts.length}
-        </Title>
+        <div className="py-3 px-4 border border-gray-200 rounded-lg bg-gray-50">
+          <div className="flex flex-wrap items-center gap-4">
+            <div
+              className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${
+                selectedCategory === 'all' 
+                  ? 'bg-white shadow-sm text-blue-600 border-blue-200' 
+                  : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
+              }`}
+              onClick={() => handleCategoryChange('all')}
+            >
+              <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                selectedCategory === 'all' ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
+              }`}>
+                {selectedCategory === 'all' && (
+                  <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              {getCategoryIcon(undefined, selectedCategory === 'all', true)}
+              <span>全部</span>
+            </div>
+            {categories.map(category => (
+              <div
+                key={category.categoryId}
+                className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${
+                  selectedCategory === category.categoryId
+                    ? 'bg-white shadow-sm text-blue-600 border-blue-200'
+                    : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
+                }`}
+                onClick={() => handleCategoryChange(category.categoryId)}
+              >
+                <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                  selectedCategory === category.categoryId ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
+                }`}>
+                  {selectedCategory === category.categoryId && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                {getCategoryIcon(category.icon, selectedCategory === category.categoryId)}
+                <span>{category.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+
 
       {/* APIs Grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Card key={index} className="h-full rounded-lg shadow-lg">
-              <Skeleton loading active>
-                <div className="flex items-start space-x-4">
-                  <Skeleton.Avatar size={48} active />
-                  <div className="flex-1 min-w-0">
-                    <Skeleton.Input active size="small" style={{ width: '80%', marginBottom: 8 }} />
-                    <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 12 }} />
-                    <Skeleton.Input active size="small" style={{ width: '60%' }} />
-                  </div>
-                </div>
-              </Skeleton>
-            </Card>
-          ))}
-        </div>
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Card key={index} className="h-full rounded-lg shadow-lg">
+                  <Skeleton loading active>
+                    <div className="flex items-start space-x-4">
+                      <Skeleton.Avatar size={48} active />
+                      <div className="flex-1 min-w-0">
+                        <Skeleton.Input active size="small" style={{ width: '80%', marginBottom: 8 }} />
+                        <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 12 }} />
+                        <Skeleton.Input active size="small" style={{ width: '60%' }} />
+                      </div>
+                    </div>
+                  </Skeleton>
+                </Card>
+              ))}
+            </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {filteredApiProducts.map((product) => (
@@ -186,18 +291,11 @@ function APIsPage() {
                     </Tag>
                   </div>
 
-                  {/* <div className="text-sm text-gray-500 mb-2">
-                    创建者: {product.creator}
-                  </div> */}
-
                   <Paragraph className="text-sm text-gray-600 mb-3 line-clamp-2">
                     {product.description}
                   </Paragraph>
 
                   <div className="flex items-center justify-between">
-                    {/* <Tag color={getCategoryColor(product.category)} className="">
-                      {getCategoryText(product.category)}
-                    </Tag> */}
                     <div className="text-xs text-gray-400">
                       更新 {product.updatedAt}
                     </div>
@@ -220,4 +318,4 @@ function APIsPage() {
   );
 }
 
-export default APIsPage; 
+export default APIsPage;

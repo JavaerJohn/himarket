@@ -20,8 +20,10 @@
 package com.alibaba.apiopenplatform.service.gateway;
 
 import cn.hutool.core.map.MapBuilder;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
@@ -34,6 +36,7 @@ import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
 import com.alibaba.apiopenplatform.support.product.HigressRefConfig;
 
+import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -108,11 +111,14 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         // mcpServer config
         MCPConfigResult.MCPServerConfig c = new MCPConfigResult.MCPServerConfig();
         c.setPath("/mcp-servers/" + higressMCPConfig.getName());
-        c.setDomains(higressMCPConfig.getDomains().stream().map(domain -> MCPConfigResult.Domain.builder()
-                        .domain(domain)
-                        // 默认HTTP
-                        .protocol("http")
-                        .build())
+        c.setDomains(higressMCPConfig.getDomains().stream().map(domain -> {
+                    HigressDomainConfig domainConfig = fetchDomain(gateway, domain);
+                    String protocol = (domainConfig == null || "off".equalsIgnoreCase(domainConfig.getEnableHttps())) ? "http" : "https";
+                    return DomainResult.builder()
+                            .domain(domain)
+                            .protocol(protocol)
+                            .build();
+                })
                 .collect(Collectors.toList()));
         m.setMcpServerConfig(c);
 
@@ -126,6 +132,17 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         m.setMeta(meta);
 
         return JSONUtil.toJsonStr(m);
+    }
+
+    private HigressDomainConfig fetchDomain(Gateway gateway, String domain) {
+        HigressClient client = getClient(gateway);
+        HigressResponse<HigressDomainConfig> response = client.execute("/v1/domains/" + domain,
+                HttpMethod.GET,
+                null,
+                null,
+                new ParameterizedTypeReference<HigressResponse<HigressDomainConfig>>() {
+                });
+        return response.getData();
     }
 
     @Override
@@ -172,6 +189,12 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
+    public boolean isConsumerExists(String consumerId, GatewayConfig config) {
+        // TODO: 实现Higress网关消费者存在性检查
+        return true;
+    }
+
+    @Override
     public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig) {
         HigressRefConfig config = (HigressRefConfig) refConfig;
         HigressClient client = getClient(gateway);
@@ -210,7 +233,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public APIResult fetchAPI(Gateway gateway, String apiId) {
+    public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {
         throw new UnsupportedOperationException("Higress gateway does not support fetching API");
     }
 
@@ -278,6 +301,12 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     @Data
     public static class HigressResponse<T> {
         private T data;
+    }
+
+    @Data
+    public static class HigressDomainConfig {
+        private String name;
+        private String enableHttps;
     }
 
     public HigressAuthConsumerConfig buildAuthHigressConsumer(String gatewayName, String consumerId) {

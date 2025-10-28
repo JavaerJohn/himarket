@@ -19,6 +19,19 @@
 
 package com.alibaba.apiopenplatform.service.impl;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
+import javax.persistence.criteria.Subquery;
+import javax.transaction.Transactional;
+
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
@@ -29,34 +42,44 @@ import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
-import com.alibaba.apiopenplatform.dto.params.product.*;
+import com.alibaba.apiopenplatform.dto.params.product.CreateProductParam;
+import com.alibaba.apiopenplatform.dto.params.product.CreateProductRefParam;
+import com.alibaba.apiopenplatform.dto.params.product.QueryProductParam;
+import com.alibaba.apiopenplatform.dto.params.product.QueryProductSubscriptionParam;
+import com.alibaba.apiopenplatform.dto.params.product.UpdateProductParam;
 import com.alibaba.apiopenplatform.dto.result.*;
-import com.alibaba.apiopenplatform.entity.*;
-import com.alibaba.apiopenplatform.repository.*;
+import com.alibaba.apiopenplatform.entity.Consumer;
+import com.alibaba.apiopenplatform.entity.Product;
+import com.alibaba.apiopenplatform.entity.ProductCategoryRelation;
+import com.alibaba.apiopenplatform.entity.ProductPublication;
+import com.alibaba.apiopenplatform.entity.ProductRef;
+import com.alibaba.apiopenplatform.entity.ProductSubscription;
+import com.alibaba.apiopenplatform.repository.ConsumerRepository;
+import com.alibaba.apiopenplatform.repository.ProductCategoryRelationRepository;
+import com.alibaba.apiopenplatform.repository.ProductCategoryRepository;
+import com.alibaba.apiopenplatform.repository.ProductPublicationRepository;
+import com.alibaba.apiopenplatform.repository.ProductRefRepository;
+import com.alibaba.apiopenplatform.repository.ProductRepository;
+import com.alibaba.apiopenplatform.repository.SubscriptionRepository;
 import com.alibaba.apiopenplatform.service.GatewayService;
-import com.alibaba.apiopenplatform.service.PortalService;
-import com.alibaba.apiopenplatform.service.ProductService;
 import com.alibaba.apiopenplatform.service.NacosService;
+import com.alibaba.apiopenplatform.service.PortalService;
+import com.alibaba.apiopenplatform.service.ProductCategoryService;
+import com.alibaba.apiopenplatform.service.ProductService;
 import com.alibaba.apiopenplatform.support.enums.ProductStatus;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
 import com.alibaba.apiopenplatform.support.enums.SourceType;
 import com.alibaba.apiopenplatform.support.product.NacosRefConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
-
-import javax.persistence.criteria.*;
-import javax.transaction.Transactional;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -84,6 +107,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    private final ProductCategoryService productCategoryService;
+
     @Override
     public ProductResult createProduct(CreateProductParam param) {
         productRepository.findByNameAndAdminId(param.getName(), contextHolder.getUser())
@@ -104,6 +129,9 @@ public class ProductServiceImpl implements ProductService {
 
         productRepository.save(product);
 
+        // 设置产品类别
+        setProductCategories(productId, param.getCategories());
+
         return getProduct(productId);
     }
 
@@ -122,7 +150,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable) {
-        log.info("zhaoh-test-listProducts-start");
         if (contextHolder.isDeveloper()) {
             param.setPortalId(contextHolder.getPortal());
         }
@@ -156,6 +183,10 @@ public class ProductServiceImpl implements ProductService {
         Optional.ofNullable(param.getAutoApprove()).ifPresent(product::setAutoApprove);
 
         productRepository.saveAndFlush(product);
+
+        // 设置产品类别
+        setProductCategories(product.getProductId(), param.getCategories());
+
         return getProduct(product.getProductId());
     }
 
@@ -214,11 +245,15 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void deleteProduct(String productId) {
-        Product Product = findProduct(productId);
+        Product product = findProduct(productId);
 
         // 下线后删除
         publicationRepository.deleteByProductId(productId);
-        productRepository.delete(Product);
+
+        // 清理产品类别关联关系
+        clearProductCategoryRelations(productId);
+
+        productRepository.delete(product);
 
         // 异步清理Product资源
         eventPublisher.publishEvent(new ProductDeletingEvent(productId));
@@ -278,7 +313,17 @@ public class ProductServiceImpl implements ProductService {
 
         if (sourceType.isGateway()) {
             GatewayResult gateway = gatewayService.getGateway(productRef.getGatewayId());
-            Object config = gateway.getGatewayType().isHigress() ? productRef.getHigressRefConfig() : gateway.getGatewayType().isAdpAIGateway() ? productRef.getAdpAIGatewayRefConfig() : productRef.getApigRefConfig();
+            // 根据网关类型选择对应的配置对象
+            Object config;
+            if (gateway.getGatewayType().isHigress()) {
+                config = productRef.getHigressRefConfig();
+            } else if (gateway.getGatewayType().isAdpAIGateway()) {
+                config = productRef.getAdpAIGatewayRefConfig();
+            } else if (gateway.getGatewayType().isApsaraGateway()) {
+                config = productRef.getApsaraGatewayRefConfig();
+            } else {
+                config = productRef.getApigRefConfig();
+            }
             if (product.getType() == ProductType.REST_API) {
                 String apiConfig = gatewayService.fetchAPIConfig(gateway.getGatewayId(), config);
                 productRef.setApiConfig(apiConfig);
@@ -299,6 +344,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void fullFillProduct(ProductResult product) {
+        // 填充产品类别信息
+        product.setCategories(productCategoryService.listCategoriesForProduct(product.getProductId()));
+
         productRefRepository.findFirstByProductId(product.getProductId())
                 .ifPresent(productRef -> {
                     product.setEnabled(productRef.getEnabled());
@@ -341,10 +389,6 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(cb.equal(root.get("type"), param.getType()));
             }
 
-            if (StrUtil.isNotBlank(param.getCategory())) {
-                predicates.add(cb.equal(root.get("category"), param.getCategory()));
-            }
-
             if (param.getStatus() != null) {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
@@ -352,6 +396,14 @@ public class ProductServiceImpl implements ProductService {
             if (StrUtil.isNotBlank(param.getName())) {
                 String likePattern = "%" + param.getName() + "%";
                 predicates.add(cb.like(root.get("name"), likePattern));
+            }
+
+            if (CollUtil.isNotEmpty(param.getCategoryIds())) {
+                Subquery<String> subquery = query.subquery(String.class);
+                Root<ProductCategoryRelation> relationRoot = subquery.from(ProductCategoryRelation.class);
+                subquery.select(relationRoot.get("productId"))
+                        .where(relationRoot.get("categoryId").in(param.getCategoryIds()));
+                predicates.add(root.get("productId").in(subquery));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -432,6 +484,20 @@ public class ProductServiceImpl implements ProductService {
     public void existsProduct(String productId) {
         productRepository.findByProductId(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
+    }
+
+    @Override
+    public void setProductCategories(String productId, List<String> categoryIds) {
+        // 验证产品是否存在
+        existsProduct(productId);
+
+        productCategoryService.unbindProductCategories(productId);
+        productCategoryService.bindProductCategories(productId, categoryIds);
+    }
+
+    @Override
+    public void clearProductCategoryRelations(String productId) {
+        productCategoryService.unbindProductCategories(productId);
     }
 
     private Specification<ProductSubscription> buildProductSubscriptionSpec(String productId, QueryProductSubscriptionParam param) {
