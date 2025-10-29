@@ -286,7 +286,6 @@ export default function ApiProductFormModal({
         <Form.Item
           label="产品类别"
           name="categories"
-          tooltip="选择适合的类别，帮助用户更好地发现您的产品"
         >
           <Select
             mode="multiple"
@@ -299,33 +298,6 @@ export default function ApiProductFormModal({
             }
           >
             {productCategories.map(category => {
-              // 渲染图标
-              let iconElement = null;
-              if (category.icon) {
-                if (category.icon.type === 'URL') {
-                  iconElement = (
-                    <img 
-                      src={category.icon.value} 
-                      alt="" 
-                      className="w-4 h-4 mr-2 rounded" 
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  );
-                } else if (category.icon.value.length <= 10 && /\p{Emoji}/u.test(category.icon.value)) {
-                  iconElement = <span className="mr-2">{category.icon.value}</span>;
-                } else {
-                  iconElement = (
-                    <img 
-                      src={category.icon.value} 
-                      alt="" 
-                      className="w-4 h-4 mr-2 rounded" 
-                    />
-                  );
-                }
-              }
-
               return (
                 <Select.Option
                   key={category.categoryId}
@@ -333,16 +305,13 @@ export default function ApiProductFormModal({
                   label={category.name}
                   searchText={`${category.name} ${category.description || ''}`}
                 >
-                  <div className="flex items-center">
-                    {iconElement}
-                    <div>
-                      <div className="font-medium">{category.name}</div>
-                      {category.description && (
-                        <div className="text-xs text-gray-500 truncate">
-                          {category.description}
-                        </div>
-                      )}
-                    </div>
+                  <div>
+                    <div className="font-medium">{category.name}</div>
+                    {category.description && (
+                      <div className="text-xs text-gray-500 truncate">
+                        {category.description}
+                      </div>
+                    )}
                   </div>
                 </Select.Option>
               );
