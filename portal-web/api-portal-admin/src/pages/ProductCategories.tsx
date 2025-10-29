@@ -341,16 +341,7 @@ export default function ProductCategories() {
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description="暂无产品类别"
-          >
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreateModal}
-              size="large"
-            >
-              创建第一个类别
-            </Button>
-          </Empty>
+          />
         </div>
       )}
 

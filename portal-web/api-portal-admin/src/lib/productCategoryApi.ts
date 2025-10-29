@@ -51,3 +51,13 @@ export const updateProductCategory = async (
 export const deleteProductCategory = async (categoryId: string): Promise<void> => {
   return await api.delete(`/product-categories/${categoryId}`);
 };
+
+// 从类别中移除产品
+export const unbindProductsFromCategory = async (categoryId: string, productIds: string[]): Promise<void> => {
+  return await api.delete(`/product-categories/${categoryId}/products`, { data: productIds });
+};
+
+// 向类别中添加产品
+export const bindProductsToCategory = async (categoryId: string, productIds: string[]): Promise<void> => {
+  return await api.post(`/product-categories/${categoryId}/products`, productIds);
+};

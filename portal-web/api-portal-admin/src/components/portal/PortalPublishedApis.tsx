@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Modal, Form, Button, Space, Select, message, Checkbox } from 'antd'
+import { Card, Table, Modal, Button, Space, message, Empty } from 'antd'
 import { EyeOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { Portal, ApiProduct } from '@/types'
 import { apiProductApi } from '@/lib/api'
@@ -23,8 +23,6 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [total, setTotal] = useState(0)
-
-  const [form] = Form.useForm()
   
   useEffect(() => {
     if (portal.portalId) {
@@ -125,28 +123,10 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
 
   const modalColumns = [
     {
-      title: '选择',
-      dataIndex: 'select',
-      key: 'select',
-      width: 60,
-      render: (_: any, record: ApiProduct) => (
-        <Checkbox
-          checked={selectedApiIds.includes(record.productId)}
-          onChange={(e) => {
-            if (e.target.checked) {
-              setSelectedApiIds([...selectedApiIds, record.productId])
-            } else {
-              setSelectedApiIds(selectedApiIds.filter(id => id !== record.productId))
-            }
-          }}
-        />
-      ),
-    },
-    {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      width: 320,
+      width: 280,
       render: (_: any, record: ApiProduct) => (
         <div>
           <div className="text-sm font-medium text-gray-900 truncate">
@@ -162,7 +142,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      width: 100,
+      width: 120,
       render: (type: string) => ProductTypeMap[type] || type,
     },
     {
@@ -182,11 +162,11 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       okType: 'danger',
       cancelText: '取消',
       onOk() {
-        apiProductApi.cancelPublishToPortal(productId, portal.portalId).then((res) => {
+        apiProductApi.cancelPublishToPortal(productId, portal.portalId).then(() => {
           message.success('移除成功')
           fetchApiProducts()
           setIsModalVisible(false)
-        }).catch((error) => {
+        }).catch(() => {
           // message.error('移除失败')
         })
       },
@@ -229,7 +209,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
           <p className="text-gray-600">管理在此Portal中发布的API产品</p>
         </div>
         <Button type="primary" onClick={() => setIsModalVisible(true)}>
-          发布新API
+          发布API产品
         </Button>
       </div>
 
@@ -249,6 +229,14 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
             onChange: handlePageChange,
             onShowSizeChange: handlePageChange,
           }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="暂无已发布的API产品"
+              />
+            )
+          }}
         />
       </Card>
 
@@ -261,6 +249,9 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
         cancelText="取消"
         width={800}
         confirmLoading={modalLoading}
+        okButtonProps={{
+          disabled: selectedApiIds.length === 0
+        }}
       >
         <Table
           columns={modalColumns}
@@ -269,6 +260,14 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
           loading={modalLoading}
           pagination={false}
           scroll={{ y: 400 }}
+          rowSelection={{
+            type: 'checkbox',
+            selectedRowKeys: selectedApiIds,
+            onChange: (selectedRowKeys) => {
+              setSelectedApiIds(selectedRowKeys as string[]);
+            },
+            columnWidth: 60,
+          }}
         />
       </Modal>
     </div>

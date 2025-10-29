@@ -38,6 +38,9 @@ public class ProductCategory extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "admin_id", length = 64)
+    private String adminId;
+
     @Column(name = "category_id", length = 64, nullable = false)
     private String categoryId;
 

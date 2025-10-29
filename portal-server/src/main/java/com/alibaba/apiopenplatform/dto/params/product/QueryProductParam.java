@@ -37,4 +37,6 @@ public class QueryProductParam {
     private ProductStatus status;
     
     private List<String> categoryIds;
+    
+    private String excludeCategoryId;
 }

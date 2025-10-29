@@ -88,9 +88,25 @@ public interface ProductCategoryService {
     void bindProductCategories(String productId, List<String> categoryIds);
 
     /**
-     * Unbind product categories from a product.
+     * Unbind all product categories from a product.
      *
      * @param productId
      */
-    void unbindProductCategories(String productId);
+    void unbindAllProductCategories(String productId);
+
+    /**
+     * Unbind products from a category.
+     *
+     * @param productIds
+     * @param categoryId
+     */
+    void unbindProductsFromCategory(List<String> productIds, String categoryId);
+
+    /**
+     * Bind products to a category.
+     *
+     * @param categoryId
+     * @param productIds
+     */
+    void bindProductsToCategory(String categoryId, List<String> productIds);
 }

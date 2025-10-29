@@ -6,7 +6,10 @@ import {
   Skeleton, 
   Empty, 
   Divider,
-  message
+  message,
+  Checkbox,
+  Modal,
+  Space
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -17,13 +20,17 @@ import {
   BulbOutlined,
   ExclamationCircleFilled,
   ClockCircleFilled,
-  CheckCircleFilled
+  CheckCircleFilled,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
-import { getProductCategory } from '@/lib/productCategoryApi';
+import { getProductCategory, unbindProductsFromCategory } from '@/lib/productCategoryApi';
 import { apiProductApi } from '@/lib/api';
 import type { ProductCategory } from '@/types/product-category';
 import type { ApiProduct } from '@/types/api-product';
 import CategoryFormModal from '@/components/product-category/CategoryFormModal';
+import AddProductModal from '@/components/product-category/AddProductModal';
 import McpServerIcon from '@/components/icons/McpServerIcon';
 
 export default function ProductCategoryDetail() {
@@ -35,6 +42,9 @@ export default function ProductCategoryDetail() {
   const [categoryLoading, setCategoryLoading] = useState(true);
   const [productsLoading, setProductsLoading] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [removeLoading, setRemoveLoading] = useState(false);
 
   useEffect(() => {
     if (categoryId) {
@@ -179,6 +189,62 @@ export default function ProductCategoryDetail() {
     fetchCategoryProducts();
   };
 
+  // 添加产品成功回调
+  const handleAddSuccess = () => {
+    setAddModalVisible(false);
+    fetchCategoryProducts(); // Refresh product list
+  };
+
+  // 处理产品选择
+  const handleProductSelect = (productId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedProductIds(prev => [...prev, productId]);
+    } else {
+      setSelectedProductIds(prev => prev.filter(id => id !== productId));
+    }
+  };
+
+  // 全选/取消全选
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedProductIds(products.map(p => p.productId));
+    } else {
+      setSelectedProductIds([]);
+    }
+  };
+
+  // 从类别中移除选中的产品
+  const handleRemoveProducts = () => {
+    if (selectedProductIds.length === 0) {
+      message.warning('请先选择要移除的产品');
+      return;
+    }
+
+    Modal.confirm({
+      title: '确认移除',
+      icon: <ExclamationCircleOutlined />,
+      content: `确定要从该类别中移除选中的 ${selectedProductIds.length} 个产品吗？`,
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        if (!categoryId) return;
+        
+        try {
+          setRemoveLoading(true);
+          await unbindProductsFromCategory(categoryId, selectedProductIds);
+          message.success('移除成功');
+          setSelectedProductIds([]);
+          fetchCategoryProducts(); // 重新获取产品列表
+        } catch (error) {
+          console.error('移除产品失败:', error);
+          message.error('移除产品失败');
+        } finally {
+          setRemoveLoading(false);
+        }
+      }
+    });
+  };
+
   if (categoryLoading) {
     return (
       <div className="space-y-6">
@@ -255,7 +321,39 @@ export default function ProductCategoryDetail() {
       </Card>
 
       <div className="mb-6">
-        <span className="text-lg font-medium">Product列表</span>
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-medium">关联产品</span>
+          <Space size="large">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setAddModalVisible(true)}
+            >
+              添加产品
+            </Button>
+            {products.length > 0 && (
+              <>
+                <Checkbox
+                  indeterminate={selectedProductIds.length > 0 && selectedProductIds.length < products.length}
+                  checked={selectedProductIds.length === products.length}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                >
+                  全选 ({selectedProductIds.length}/{products.length})
+                </Checkbox>
+                <Button
+                  type="primary"
+                  danger
+                  icon={<DeleteOutlined />}
+                  loading={removeLoading}
+                  disabled={selectedProductIds.length === 0}
+                  onClick={handleRemoveProducts}
+                >
+                  移除选中
+                </Button>
+              </>
+            )}
+          </Space>
+        </div>
         <Divider className="mt-2" />
       </div>
 
@@ -285,6 +383,15 @@ export default function ProductCategoryDetail() {
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
+                  {/* 复选框 */}
+                  <Checkbox
+                    checked={selectedProductIds.includes(product.productId)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleProductSelect(product.productId, e.target.checked);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
                   {/* 产品图标 */}
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
                     {getTypeIcon(product.icon, product.type)}
@@ -338,14 +445,7 @@ export default function ProductCategoryDetail() {
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description="该类别下暂无产品"
-            >
-              <Button 
-                type="primary"
-                onClick={() => navigate('/api-products')}
-              >
-                去创建产品
-              </Button>
-            </Empty>
+            />
           </div>
         </Card>
       )}
@@ -358,6 +458,16 @@ export default function ProductCategoryDetail() {
         category={category}
         isEdit={true}
       />
+
+      {/* 添加产品弹窗 */}
+      {categoryId && (
+        <AddProductModal
+          visible={addModalVisible}
+          categoryId={categoryId}
+          onCancel={() => setAddModalVisible(false)}
+          onSuccess={handleAddSuccess}
+        />
+      )}
     </div>
   );
 }

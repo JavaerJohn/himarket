@@ -38,6 +38,10 @@ public interface ProductCategoryRelationRepository extends BaseRepository<Produc
     @Transactional
     void deleteAllByProductId(String productId);
 
+    @Modifying
+    @Transactional
+    void deleteByProductIdInAndCategoryId(Collection<String> productIds, String categoryId);
+
     List<ProductCategoryRelation> findByCategoryIdIn(Collection<String> categoryId);
 
 }

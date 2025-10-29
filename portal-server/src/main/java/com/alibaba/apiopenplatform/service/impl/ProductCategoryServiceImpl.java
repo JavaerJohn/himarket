@@ -24,13 +24,13 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.constant.Resources;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
+import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
 import com.alibaba.apiopenplatform.dto.params.category.QueryProductCategoryParam;
 import com.alibaba.apiopenplatform.dto.params.category.UpdateProductCategoryParam;
 import com.alibaba.apiopenplatform.dto.params.category.CreateProductCategoryParam;
 import com.alibaba.apiopenplatform.dto.result.ProductCategoryResult;
 import com.alibaba.apiopenplatform.dto.result.PageResult;
-import com.alibaba.apiopenplatform.dto.result.ProductResult;
 import com.alibaba.apiopenplatform.entity.Product;
 import com.alibaba.apiopenplatform.entity.ProductCategory;
 import com.alibaba.apiopenplatform.entity.ProductCategoryRelation;
@@ -45,7 +45,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Subquery;
@@ -64,6 +63,8 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     private final ProductCategoryRelationRepository categoryRelationRepository;
 
+    private final ContextHolder contextHolder;
+
     @Override
     public ProductCategoryResult createProductCategory(CreateProductCategoryParam param) {
         categoryRepository.findByName(param.getName())
@@ -76,6 +77,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
         ProductCategory category = param.convertTo();
         category.setCategoryId(categoryId);
+        category.setAdminId(contextHolder.getUser());
 
         categoryRepository.save(category);
 
@@ -171,8 +173,49 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     }
 
     @Override
-    public void unbindProductCategories(String productId) {
+    public void unbindAllProductCategories(String productId) {
         categoryRelationRepository.deleteAllByProductId(productId);
+    }
+
+    @Override
+    public void unbindProductsFromCategory(List<String> productIds, String categoryId) {
+        if (CollUtil.isEmpty(productIds)) {
+            return;
+        }
+        
+        // Delete the relationships between products and category
+        categoryRelationRepository.deleteByProductIdInAndCategoryId(productIds, categoryId);
+    }
+
+    @Override
+    public void bindProductsToCategory(String categoryId, List<String> productIds) {
+        if (CollUtil.isEmpty(productIds)) {
+            return;
+        }
+        
+        // Get existing relationships to avoid duplicates
+        Set<String> existingProductIds = categoryRelationRepository
+                .findByCategoryId(categoryId)
+                .stream()
+                .map(ProductCategoryRelation::getProductId)
+                .collect(Collectors.toSet());
+        
+        // Create new relationships
+        List<ProductCategoryRelation> newRelations = productIds.stream()
+                .filter(productId -> !existingProductIds.contains(productId))
+                .map(productId -> {
+                    ProductCategoryRelation relation = new ProductCategoryRelation();
+                    relation.setProductId(productId);
+                    relation.setCategoryId(categoryId);
+                    return relation;
+                })
+                .collect(Collectors.toList());
+        
+        if (CollUtil.isNotEmpty(newRelations)) {
+            categoryRelationRepository.saveAll(newRelations);
+        }
+        
+        log.info("Bound {} products to category {}", newRelations.size(), categoryId);
     }
 
     private ProductCategory findCategory(String categoryId) {

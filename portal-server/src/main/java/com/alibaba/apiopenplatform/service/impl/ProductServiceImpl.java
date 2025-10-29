@@ -20,11 +20,9 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.persistence.criteria.Predicate;
@@ -55,8 +53,6 @@ import com.alibaba.apiopenplatform.entity.ProductPublication;
 import com.alibaba.apiopenplatform.entity.ProductRef;
 import com.alibaba.apiopenplatform.entity.ProductSubscription;
 import com.alibaba.apiopenplatform.repository.ConsumerRepository;
-import com.alibaba.apiopenplatform.repository.ProductCategoryRelationRepository;
-import com.alibaba.apiopenplatform.repository.ProductCategoryRepository;
 import com.alibaba.apiopenplatform.repository.ProductPublicationRepository;
 import com.alibaba.apiopenplatform.repository.ProductRefRepository;
 import com.alibaba.apiopenplatform.repository.ProductRepository;
@@ -406,6 +402,14 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(root.get("productId").in(subquery));
             }
 
+            if (StrUtil.isNotBlank(param.getExcludeCategoryId())) {
+                Subquery<String> subquery = query.subquery(String.class);
+                Root<ProductCategoryRelation> relationRoot = subquery.from(ProductCategoryRelation.class);
+                subquery.select(relationRoot.get("productId"))
+                        .where(cb.equal(relationRoot.get("categoryId"), param.getExcludeCategoryId()));
+                predicates.add(cb.not(root.get("productId").in(subquery)));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
@@ -491,13 +495,13 @@ public class ProductServiceImpl implements ProductService {
         // 验证产品是否存在
         existsProduct(productId);
 
-        productCategoryService.unbindProductCategories(productId);
+        productCategoryService.unbindAllProductCategories(productId);
         productCategoryService.bindProductCategories(productId, categoryIds);
     }
 
     @Override
     public void clearProductCategoryRelations(String productId) {
-        productCategoryService.unbindProductCategories(productId);
+        productCategoryService.unbindAllProductCategories(productId);
     }
 
     private Specification<ProductSubscription> buildProductSubscriptionSpec(String productId, QueryProductSubscriptionParam param) {
