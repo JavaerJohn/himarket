@@ -163,6 +163,8 @@ public class AIGatewayOperator extends APIGOperator {
         }
         GetMcpServerResponseBody.Data resp = response.getBody().getData();
 
+        // mcpServer name
+        mcpConfig.setMcpServerName(resp.getName());
         // mcpServer config
         MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
 
