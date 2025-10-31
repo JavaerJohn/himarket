@@ -17,27 +17,30 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.support.gateway;
+package com.alibaba.apiopenplatform.support.consumer;
 
-import com.alibaba.apiopenplatform.entity.Gateway;
-import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * ADP AI网关授权配置
+ */
 @Data
 @Builder
-public class GatewayConfig {
+public class AdpAIAuthConfig {
 
-    private GatewayType gatewayType;
-
-    private APIGConfig apigConfig;
-
-    private AdpAIGatewayConfig adpAIGatewayConfig;
-
-    private HigressConfig higressConfig;
-    
     /**
-     * 网关实体引用，用于获取gatewayId等信息
+     * MCP Server名称
      */
-    private Gateway gateway;
+    private String mcpServerName;
+
+    /**
+     * 消费者ID
+     */
+    private String consumerId;
+
+    /**
+     * 网关实例ID
+     */
+    private String gwInstanceId;
 }

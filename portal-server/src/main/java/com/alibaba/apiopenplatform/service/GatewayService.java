@@ -96,6 +96,14 @@ public interface GatewayService {
 
     void deleteConsumer(String gwConsumerId, GatewayConfig config);
 
+    /**
+     * 检查消费者是否存在于网关中
+     * @param gwConsumerId 网关消费者ID
+     * @param config 网关配置
+     * @return 是否存在
+     */
+    boolean isConsumerExists(String gwConsumerId, GatewayConfig config);
+
     ConsumerAuthConfig authorizeConsumer(String gatewayId, String gwConsumerId, ProductRefResult productRef);
 
     void revokeConsumerAuthorization(String gatewayId, String gwConsumerId, ConsumerAuthConfig config);

@@ -316,6 +316,12 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
+    public boolean isConsumerExists(String consumerId, GatewayConfig config) {
+        // TODO: 实现APIG网关消费者存在性检查
+        return true;
+    }
+
+    @Override
     public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig) {
         APIGClient client = getClient(gateway);
 

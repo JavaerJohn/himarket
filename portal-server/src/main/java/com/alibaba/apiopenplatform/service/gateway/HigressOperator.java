@@ -172,6 +172,12 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
+    public boolean isConsumerExists(String consumerId, GatewayConfig config) {
+        // TODO: 实现Higress网关消费者存在性检查
+        return true;
+    }
+
+    @Override
     public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig) {
         HigressRefConfig config = (HigressRefConfig) refConfig;
         HigressClient client = getClient(gateway);

@@ -35,4 +35,9 @@ public class ConsumerAuthConfig {
      * for Higress
      */
     private HigressAuthConfig higressAuthConfig;
+
+    /**
+     * for ADP AI Gateway
+     */
+    private AdpAIAuthConfig adpAIAuthConfig;
 }

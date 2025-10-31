@@ -58,6 +58,14 @@ public abstract class GatewayOperator<T> {
 
     abstract public void deleteConsumer(String consumerId, GatewayConfig config);
 
+    /**
+     * 检查消费者是否存在于网关中
+     * @param consumerId 消费者ID
+     * @param config 网关配置
+     * @return 是否存在
+     */
+    abstract public boolean isConsumerExists(String consumerId, GatewayConfig config);
+
     abstract public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig);
 
     abstract public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig);

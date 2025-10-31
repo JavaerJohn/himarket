@@ -195,10 +195,21 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
+    public boolean isConsumerExists(String gwConsumerId, GatewayConfig config) {
+        return gatewayOperators.get(config.getGatewayType()).isConsumerExists(gwConsumerId, config);
+    }
+
+    @Override
     public ConsumerAuthConfig authorizeConsumer(String gatewayId, String gwConsumerId, ProductRefResult productRef) {
         Gateway gateway = findGateway(gatewayId);
-        Object refConfig = gateway.getGatewayType().isHigress() ?
-                productRef.getHigressRefConfig() : productRef.getApigRefConfig();
+        Object refConfig;
+        if (gateway.getGatewayType().isHigress()) {
+            refConfig = productRef.getHigressRefConfig();
+        } else if (gateway.getGatewayType().isAdpAIGateway()) {
+            refConfig = productRef.getAdpAIGatewayRefConfig();
+        } else {
+            refConfig = productRef.getApigRefConfig();
+        }
         return getOperator(gateway).authorizeConsumer(gateway, gwConsumerId, refConfig);
     }
 
@@ -217,6 +228,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                 .gatewayType(gateway.getGatewayType())
                 .apigConfig(gateway.getApigConfig())
                 .higressConfig(gateway.getHigressConfig())
+                .adpAIGatewayConfig(gateway.getAdpAIGatewayConfig())
+                .gateway(gateway)  // 添加Gateway实体引用
                 .build();
     }
 
