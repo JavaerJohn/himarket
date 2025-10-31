@@ -1,4 +1,4 @@
-import { Card, Tag, Tabs, Table, Collapse, Descriptions } from "antd";
+import { Card, Tag, Tabs, Table, Collapse, Descriptions, Select } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import type { ApiProduct } from "@/types/api-product";
 import MonacoEditor from "react-monaco-editor";
@@ -64,6 +64,7 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
   const [httpJson, setHttpJson] = useState("");
   const [sseJson, setSseJson] = useState("");
   const [localJson, setLocalJson] = useState("");
+  const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
 
   // 生成连接配置JSON
   const generateConnectionConfig = (
@@ -71,7 +72,8 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
     path: string | null | undefined,
     serverName: string,
     localConfig?: unknown,
-    protocolType?: string
+    protocolType?: string,
+    domainIndex: number = 0
   ) => {
     // 互斥：优先判断本地模式
     if (localConfig) {
@@ -83,8 +85,8 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
     }
 
     // HTTP/SSE 模式
-    if (domains && domains.length > 0 && path) {
-      const domain = domains[0];
+    if (domains && domains.length > 0 && path && domainIndex < domains.length) {
+      const domain = domains[domainIndex];
       const baseUrl = `${domain.protocol}://${domain.domain}`;
       const endpoint = `${baseUrl}${path}`;
 
@@ -259,13 +261,14 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
             : undefined,
         });
 
-        // 生成连接配置JSON test
+        // 生成连接配置JSON
         generateConnectionConfig(
           apiProduct.mcpConfig.mcpServerConfig?.domains,
           apiProduct.mcpConfig.mcpServerConfig?.path,
-          apiProduct.mcpConfig.mcpServerName,
+          apiProduct.mcpConfig.mcpServerName || apiProduct.name,
           apiProduct.mcpConfig.mcpServerConfig?.rawConfig,
-          apiProduct.mcpConfig.meta?.protocol
+          apiProduct.mcpConfig.meta?.protocol,
+          selectedDomainIndex
         );
       } catch {
         setMcpParsed({});
@@ -273,7 +276,18 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
     } else {
       setMcpParsed({});
     }
-  }, [apiProduct]);
+  }, [apiProduct, selectedDomainIndex]);
+
+  // 生成域名选项的函数
+  const getDomainOptions = (domains: Array<{ domain: string; protocol: string; networkType?: string }>) => {
+    return domains.map((domain, index) => {
+      return {
+        value: index,
+        label: `${domain.protocol}://${domain.domain}`,
+        domain: domain
+      }
+    })
+  }
 
   const isOpenApi = useMemo(
     () => Boolean(apiProduct.apiConfig?.spec),
@@ -529,6 +543,34 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
             label: "MCP连接配置",
             children: (
               <div className="space-y-4">
+                {/* 域名选择器 */}
+                {apiProduct.mcpConfig?.mcpServerConfig?.domains && apiProduct.mcpConfig.mcpServerConfig.domains.length > 1 && (
+                  <div className="mb-2">
+                    <div className="flex items-center mb-2">
+                      <span className="text-xs text-gray-900">域名</span>
+                    </div>
+                    <Select
+                      value={selectedDomainIndex}
+                      onChange={setSelectedDomainIndex}
+                      className="w-full"
+                      placeholder="选择域名"
+                      size="middle"
+                      style={{
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {getDomainOptions(apiProduct.mcpConfig.mcpServerConfig.domains).map((option) => (
+                        <Select.Option key={option.value} value={option.value}>
+                          <span className="text-xs text-gray-900 font-mono">
+                            {option.label}
+                          </span>
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
+                
                 <div className="">
                   {apiProduct.mcpConfig?.mcpServerConfig?.rawConfig ? (
                     // Local Mode - 显示本地配置

@@ -1,3 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+
 package com.alibaba.apiopenplatform.service.gateway;
 
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
@@ -5,6 +25,7 @@ import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.dto.result.AdpGatewayInstanceResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
 import com.alibaba.apiopenplatform.entity.Gateway;
@@ -17,6 +38,7 @@ import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
 import com.alibaba.apiopenplatform.dto.result.MCPConfigResult;
 import cn.hutool.json.JSONUtil;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -155,14 +177,14 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         serverConfig.setPath("/" + data.getName());
         
         // 获取网关实例访问信息并设置域名信息
-        List<MCPConfigResult.Domain> domains = getGatewayAccessDomains(data.getGwInstanceId(), config);
+        List<DomainResult> domains = getGatewayAccessDomains(data.getGwInstanceId(), config);
         if (domains != null && !domains.isEmpty()) {
             serverConfig.setDomains(domains);
         } else {
             // 如果无法获取网关访问信息，则使用原有的services信息作为备选
             if (data.getServices() != null && !data.getServices().isEmpty()) {
-                List<MCPConfigResult.Domain> fallbackDomains = data.getServices().stream()
-                        .map(domain -> MCPConfigResult.Domain.builder()
+                List<DomainResult> fallbackDomains = data.getServices().stream()
+                        .map(domain -> DomainResult.builder()
                                 .domain(domain.getName() + ":" + domain.getPort())
                                 .protocol("http")
                                 .build())
@@ -188,7 +210,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     /**
      * 获取网关实例的访问信息并构建域名列表
      */
-    private List<MCPConfigResult.Domain> getGatewayAccessDomains(String gwInstanceId, AdpAIGatewayConfig config) {
+    private List<DomainResult> getGatewayAccessDomains(String gwInstanceId, AdpAIGatewayConfig config) {
         AdpAIGatewayClient client = new AdpAIGatewayClient(config);
         try {
             String url = client.getFullUrl("/gatewayInstance/getInstanceInfo");
@@ -229,7 +251,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     /**
      * 根据网关实例访问信息构建域名列表
      */
-    private List<MCPConfigResult.Domain> buildDomainsFromAccessInfo(AdpGatewayInstanceResult.AdpGatewayInstanceData data) {
+    private List<DomainResult> buildDomainsFromAccessInfo(AdpGatewayInstanceResult.AdpGatewayInstanceData data) {
         // 兼容 listInstances 调用：取第一条记录的 accessMode
         if (data != null && data.getRecords() != null && !data.getRecords().isEmpty()) {
             AdpGatewayInstanceResult.AdpGatewayInstance instance = data.getRecords().get(0);
@@ -240,8 +262,8 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         return new ArrayList<>();
     }
 
-    private List<MCPConfigResult.Domain> buildDomainsFromAccessModes(List<AdpGatewayInstanceResult.AccessMode> accessModes) {
-        List<MCPConfigResult.Domain> domains = new ArrayList<>();
+    private List<DomainResult> buildDomainsFromAccessModes(List<AdpGatewayInstanceResult.AccessMode> accessModes) {
+        List<DomainResult> domains = new ArrayList<>();
         if (accessModes == null || accessModes.isEmpty()) { return domains; }
         AdpGatewayInstanceResult.AccessMode accessMode = accessModes.get(0);
 
@@ -250,7 +272,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             if (accessMode.getExternalIps() != null && !accessMode.getExternalIps().isEmpty()) {
                 for (String externalIp : accessMode.getExternalIps()) {
                     if (externalIp == null || externalIp.isEmpty()) { continue; }
-                    MCPConfigResult.Domain domain = MCPConfigResult.Domain.builder()
+                    DomainResult domain = DomainResult.builder()
                             .domain(externalIp + ":80")
                             .protocol("http")
                             .build();
@@ -271,7 +293,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                         String[] parts = portMapping.split(":");
                         if (parts.length >= 2) {
                             String nodePort = parts[1].split("/")[0];
-                            MCPConfigResult.Domain domain = MCPConfigResult.Domain.builder()
+                            DomainResult domain = DomainResult.builder()
                                     .domain(ip + ":" + nodePort)
                                     .protocol("http")
                                     .build();
@@ -286,7 +308,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         if (domains.isEmpty() && accessMode.getExternalIps() != null && !accessMode.getExternalIps().isEmpty()) {
             for (String externalIp : accessMode.getExternalIps()) {
                 if (externalIp == null || externalIp.isEmpty()) { continue; }
-                MCPConfigResult.Domain domain = MCPConfigResult.Domain.builder()
+                DomainResult domain = DomainResult.builder()
                         .domain(externalIp + ":80")
                         .protocol("http")
                         .build();
@@ -417,18 +439,26 @@ public class AdpAIGatewayOperator extends GatewayOperator {
 
             String url = client.getFullUrl("/application/modifyApp");
 
+            // 明确各参数含义，避免重复使用consumerId带来的混淆
+            String appId = consumerId;  // 应用ID，用于标识要更新的应用
+            String appName = consumerId;  // 应用名称，通常与appId保持一致
+            String description = "Consumer managed by Portal";  // 语义化的描述信息
+            Integer authType = 5;  // 认证类型：API_KEY
+            String authTypeName = "API_KEY";  // 认证类型名称
+            Boolean enable = true;  // 启用状态
+
             // 构建请求体
             cn.hutool.json.JSONObject requestData = JSONUtil.createObj();
-            requestData.set("appId", consumerId);
-            requestData.set("appName", consumerId);
-            requestData.set("authType", 5);                 // 固定参数
-            requestData.set("authTypeName", "API_KEY");
-            requestData.set("description", consumerId);
-            requestData.set("enable", true);                // 固定参数
+            requestData.set("appId", appId);
+            requestData.set("appName", appName);
+            requestData.set("authType", authType);
+            requestData.set("authTypeName", authTypeName);
+            requestData.set("description", description);
+            requestData.set("enable", enable);
             if (apiKey != null) {
                 requestData.set("key", apiKey);
             }
-            requestData.set("groups", Collections.singletonList("true")); // 固定参数
+            requestData.set("groups", Collections.singletonList("true"));
             requestData.set("gwInstanceId", gateway.getGatewayId());
 
             String requestBody = requestData.toString();
@@ -661,26 +691,42 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                 if (code == 200) {
                     log.info("Successfully revoked consumer {} authorization from MCP server {}", 
                         consumerId, adpAIAuthConfig.getMcpServerName());
-                } else {
-                    String message = responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
-                    log.warn("Failed to revoke consumer authorization from MCP server: {}", message);
-                    // 撤销授权失败不抛异常，只记录日志
+                    return;
                 }
-            } else {
-                log.warn("Failed to revoke consumer authorization from MCP server, HTTP status: {}", 
-                    response.getStatusCode());
+                
+                // 获取错误信息
+                String message = responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
+                
+                // 如果是资源不存在（已被删除），只记录警告，不抛异常
+                if (message != null && (message.contains("not found") || message.contains("不存在") 
+                        || message.contains("NotFound") || code == 404)) {
+                    log.warn("Consumer authorization already removed or not found: consumerId={}, mcpServer={}, message={}",
+                        consumerId, adpAIAuthConfig.getMcpServerName(), message);
+                    return;
+                }
+                
+                // 其他错误抛出异常
+                String errorMsg = "Failed to revoke consumer authorization from MCP server: " + message;
+                log.error(errorMsg);
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, errorMsg);
             }
+            
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, 
+                "Failed to revoke consumer authorization, HTTP status: " + response.getStatusCode());
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error revoking consumer {} authorization from MCP server {}", 
                 consumerId, adpAIAuthConfig.getMcpServerName(), e);
-            // 撤销授权失败不抛异常，只记录日志
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, 
+                "Error revoking consumer authorization: " + e.getMessage());
         } finally {
             client.close();
         }
     }
 
     @Override
-    public APIResult fetchAPI(Gateway gateway, String apiId) {
+    public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {
         return null;
     }
 

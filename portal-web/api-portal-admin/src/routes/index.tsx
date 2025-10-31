@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import LayoutWrapper from '@/components/LayoutWrapper';
 import Portals from '@/pages/Portals';
 import ApiProducts from '@/pages/ApiProducts';
+import ProductCategories from '@/pages/ProductCategories';
+import ProductCategoryDetail from '@/pages/ProductCategoryDetail';
 import GatewayConsoles from '@/pages/GatewayConsoles';
 import NacosConsoles from '@/pages/NacosConsoles';
 import PortalDetail from '@/pages/PortalDetail';
@@ -36,6 +38,14 @@ export const router = createBrowserRouter([
       {
         path: 'api-products/detail',
         element: <ApiProductDetail />,
+      },
+      {
+        path: 'product-categories',
+        element: <ProductCategories />,
+      },
+      {
+        path: 'product-categories/:categoryId',
+        element: <ProductCategoryDetail />,
       },
       {
         path: 'consoles',

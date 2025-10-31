@@ -19,19 +19,11 @@ spring:
 #   username: YourDBUser
 #   password: YourDBPassword
 db:
-   host: rm-uf6pc9n1jzi2478l4eo.mysql.rds.aliyuncs.com
-   port: 3306
-   name: portal_db
-   username: portal_test
-   password: portal-Go
-
-
-#  -Ddb.host=rm-uf6pc9n1jzi2478l4eo.mysql.rds.aliyuncs.com \
-#  -Ddb.port=3306 \
-#  -Ddb.name=portal_db \
-#  -Ddb.username=portal_test \
-#  -Ddb.password=portal-Go \
-
+   host: ${DB_HOST:localhost}
+   port: ${DB_PORT:3306}
+   name: ${DB_NAME:portal_db}
+   username: ${DB_USERNAME:root}
+   password: ${DB_PASSWORD:}
 
 # Encryptor
 encryption:

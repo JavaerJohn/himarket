@@ -23,6 +23,8 @@ import com.alibaba.apiopenplatform.support.enums.ProductStatus;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class QueryProductParam {
 
@@ -32,7 +34,9 @@ public class QueryProductParam {
 
     private String name;
 
-    private String category;
-
     private ProductStatus status;
+    
+    private List<String> categoryIds;
+    
+    private String excludeCategoryId;
 }

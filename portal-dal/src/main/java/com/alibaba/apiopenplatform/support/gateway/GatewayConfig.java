@@ -34,6 +34,8 @@ public class GatewayConfig {
 
     private AdpAIGatewayConfig adpAIGatewayConfig;
 
+    private ApsaraGatewayConfig apsaraGatewayConfig;
+
     private HigressConfig higressConfig;
     
     /**

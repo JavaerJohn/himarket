@@ -66,16 +66,15 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                 }
             >
                 <div>
-                    <div className="grid grid-cols-6 gap-8 items-center pt-0 pb-2">
+                    <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                         <span className="text-xs text-gray-600">Portal名称:</span>
                         <span className="col-span-2 text-xs text-gray-900">{portal.name}</span>
                         <span className="text-xs text-gray-600">Portal ID:</span>
                         <div className="col-span-2 flex items-center gap-2">
                             <span className="text-xs text-gray-700">{portal.portalId}</span>
-                            <Button 
-                                type="text" 
-                                size="small"
-                                icon={<CopyOutlined />}
+                            <CopyOutlined 
+                                className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors ml-1" 
+                                style={{ fontSize: '12px' }}
                                 onClick={async () => {
                                     try {
                                         await copyToClipboard(portal.portalId);
@@ -84,7 +83,6 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                                         message.error('复制失败，请手动复制');
                                     }
                                 }}
-                                className="h-auto p-1 min-w-0"
                             />
                         </div>
                     </div>

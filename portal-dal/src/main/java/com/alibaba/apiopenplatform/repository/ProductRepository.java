@@ -44,5 +44,5 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
     Page<Product> findByAdminId(String adminId, Pageable pageable);
 
-    Page<Product> findByCategory(String category, Pageable pageable);
+
 }

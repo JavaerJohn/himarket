@@ -57,7 +57,7 @@ const mockPolicies: Policy[] = [
   }
 ]
 
-export function ApiProductPolicy({ apiProduct }: ApiProductPolicyProps) {
+export function ApiProductPolicy({ }: ApiProductPolicyProps) {
   const [policies, setPolicies] = useState<Policy[]>(mockPolicies)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null)

@@ -47,6 +47,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const [httpJson, setHttpJson] = useState('')
   const [sseJson, setSseJson] = useState('')
   const [localJson, setLocalJson] = useState('')
+  const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0)
 
   useEffect(() => {    
     fetchGateways()
@@ -69,17 +70,50 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   }, [apiProduct])
 
   // 生成连接配置
+  // 当产品切换时重置域名选择索引
+  useEffect(() => {
+    setSelectedDomainIndex(0);
+  }, [apiProduct.productId]);
+
   useEffect(() => {
     if (apiProduct.type === 'MCP_SERVER' && apiProduct.mcpConfig) {
+      // 获取关联的MCP Server名称
+      let mcpServerName = apiProduct.name // 默认使用产品名称
+
+      if (linkedService) {
+        // 从linkedService中获取真实的MCP Server名称
+        if (linkedService.sourceType === 'GATEWAY' && linkedService.apigRefConfig && 'mcpServerName' in linkedService.apigRefConfig) {
+          mcpServerName = linkedService.apigRefConfig.mcpServerName || apiProduct.name
+        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig) {
+          mcpServerName = linkedService.higressRefConfig.mcpServerName || apiProduct.name
+        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.adpAIGatewayRefConfig) {
+          mcpServerName = linkedService.adpAIGatewayRefConfig.mcpServerName || apiProduct.name
+        } else if (linkedService.sourceType === 'NACOS' && linkedService.nacosRefConfig) {
+          mcpServerName = linkedService.nacosRefConfig.mcpServerName || apiProduct.name
+        }
+      }
+
       generateConnectionConfig(
         apiProduct.mcpConfig.mcpServerConfig.domains,
         apiProduct.mcpConfig.mcpServerConfig.path,
-        apiProduct.mcpConfig.mcpServerName,
+        mcpServerName,
         apiProduct.mcpConfig.mcpServerConfig.rawConfig,
-        apiProduct.mcpConfig.meta?.protocol
+        apiProduct.mcpConfig.meta?.protocol,
+        selectedDomainIndex
       )
     }
-  }, [apiProduct])
+  }, [apiProduct, linkedService, selectedDomainIndex])
+
+  // 生成域名选项的函数
+  const getDomainOptions = (domains: Array<{ domain: string; protocol: string; networkType?: string }>) => {
+    return domains.map((domain, index) => {
+      return {
+        value: index,
+        label: `${domain.protocol}://${domain.domain}`,
+        domain: domain
+      }
+    })
+  }
 
   // 解析YAML配置的函数
   const parseYamlConfig = (yamlString: string): {
@@ -126,7 +160,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     path: string | null | undefined,
     serverName: string,
     localConfig?: unknown,
-    protocolType?: string
+    protocolType?: string,
+    domainIndex: number = 0
   ) => {
     // 互斥：优先判断本地模式
     if (localConfig) {
@@ -138,9 +173,31 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
 
     // HTTP/SSE 模式
-    if (domains && domains.length > 0 && path) {
-      const domain = domains[0]
-      const fullUrl = `${domain.protocol}://${domain.domain}${path || '/'}`
+      if (domains && domains.length > 0 && path && domainIndex < domains.length) {
+      const domain = domains[domainIndex]
+      // 处理域名和端口，隐藏默认端口（80/443）
+      const formatDomainWithPort = (domainStr: string, protocol: string) => {
+        const [host, port] = domainStr.split(':');
+        // 如果没有端口，直接返回域名
+        if (!port) return domainStr;
+
+        // 隐藏 HTTP 默认端口 80
+        if (protocol === 'http' && port === '80') return host;
+        // 隐藏 HTTPS 默认端口 443
+        if (protocol === 'https' && port === '443') return host;
+
+        // 其他情况保留端口
+        return domainStr;
+      };
+
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.protocol);
+      const baseUrl = `${domain.protocol}://${formattedDomain}`;
+      let fullUrl = `${baseUrl}${path || '/'}`;
+
+      if (apiProduct.mcpConfig?.meta?.source === 'ADP_AI_GATEWAY' ||
+          apiProduct.mcpConfig?.meta?.source === 'APSARA_GATEWAY') {
+        fullUrl = `${baseUrl}/mcp-servers${path || '/'}`;
+      }
 
       if (protocolType === 'SSE') {
         // 仅生成SSE配置，不追加/sse
@@ -213,10 +270,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const fetchGateways = async () => {
     setGatewayLoading(true)
     try {
-      const res = await gatewayApi.getGateways()
+      const res = await gatewayApi.getGateways({
+        page: 1,
+        size: 1000,
+      })
       const result = apiProduct.type === 'REST_API' ?
        res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API') :
-       res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY')
+       res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY')
       setGateways(result || [])
     } catch (error) {
       console.error('获取网关列表失败:', error)
@@ -312,6 +372,20 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           type: 'MCP Server'
         }))
         setApiList(mcpServers)
+      } else if (gateway.gatewayType === 'APSARA_GATEWAY') {
+        // APSARA_GATEWAY类型：获取MCP Server列表
+        const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+          page: 1,
+          size: 500 // 获取所有MCP Server
+        })
+        const mcpServers = (res.data?.content || []).map((api: any) => ({
+          mcpServerName: api.mcpServerName || api.name,
+          fromGatewayType: 'APSARA_GATEWAY' as const,
+          mcpRouteId: api.mcpRouteId,
+          mcpServerId: api.mcpServerId,
+          type: 'MCP Server'
+        }))
+        setApiList(mcpServers)
       }
     } catch (error) {
     } finally {
@@ -393,6 +467,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           namespaceId: selectedNamespace || 'public'
         } : undefined,
         adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
+        apsaraGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'APSARA_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
         message.success('关联成功')
@@ -486,6 +561,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         // 专有云AI网关上的MCP Server
         apiName = linkedService.adpAIGatewayRefConfig.mcpServerName || '未命名'
         sourceInfo = '专有云AI网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.apsaraGatewayRefConfig) {
+        // 飞天企业版AI网关上的MCP Server
+        apiName = linkedService.apsaraGatewayRefConfig.mcpServerName || '未命名'
+        sourceInfo = '飞天企业版AI网关'
         gatewayInfo = linkedService.gatewayId || '未知'
       } else if (linkedService.sourceType === 'NACOS' && linkedService.nacosRefConfig) {
         // Nacos上的MCP Server
@@ -642,6 +722,32 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
               <Card>
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+
+                  {/* 域名选择器 */}
+                  {apiProduct.mcpConfig?.mcpServerConfig?.domains && apiProduct.mcpConfig.mcpServerConfig.domains.length > 1 && (
+                    <div className="mb-2">
+                      <Select
+                        value={selectedDomainIndex}
+                        onChange={setSelectedDomainIndex}
+                        className="w-full"
+                        placeholder="选择域名"
+                        size="middle"
+                        style={{
+                          borderRadius: '6px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        {getDomainOptions(apiProduct.mcpConfig.mcpServerConfig.domains).map((option) => (
+                          <Select.Option key={option.value} value={option.value}>
+                            <span className="text-xs text-gray-900 font-mono">
+                              {option.label}
+                            </span>
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
+
                   <Tabs
                     size="small" 
                     defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
@@ -661,9 +767,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                                 onClick={() => handleCopy(localJson)}
                               >
                               </Button>
-                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre-wrap">{localJson}</pre>
-                              </div>
+                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                  <pre className="whitespace-pre">{localJson}</pre>
+                                </div>
                             </div>
                           ),
                         });
@@ -682,7 +788,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                                 >
                                 </Button>
                                 <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre-wrap">{sseJson}</pre>
+                                  <pre className="whitespace-pre">{sseJson}</pre>
                                 </div>
                               </div>
                             ),
@@ -703,7 +809,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                                 >
                                 </Button>
                                 <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre-wrap">{httpJson}</pre>
+                                  <pre className="whitespace-pre">{httpJson}</pre>
                                 </div>
                               </div>
                             ),

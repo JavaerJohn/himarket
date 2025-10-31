@@ -25,6 +25,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
 import com.alibaba.apiopenplatform.support.consumer.APIGAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
@@ -50,11 +51,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RequiredArgsConstructor
 @Service
@@ -463,7 +464,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         return dashboardUrl;
     }
 
-    public APIResult fetchAPI(Gateway gateway, String apiId) {
+    public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {
         APIGClient client = getClient(gateway);
         try {
             CompletableFuture<GetHttpApiResponse> f = client.execute(c -> {
@@ -480,8 +481,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
-            HttpApiApiInfo apiInfo = response.getBody().getData();
-            return new APIResult().convertFrom(apiInfo);
+            return response.getBody().getData();
         } catch (Exception e) {
             log.error("Error fetching API", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching API，Cause：" + e.getMessage());
@@ -645,6 +645,72 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                         .sk(cred.getSk())
                         .generateMode("Custom")
                         .type("AkSk")
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    protected List<DomainResult> extractAPIDomains(HttpApiApiInfo apiInfo) {
+        if (apiInfo == null || apiInfo.getEnvironments() == null) {
+            return Collections.emptyList();
+        }
+
+        Stream<DomainResult> subDomains = apiInfo.getEnvironments()
+                .stream()
+                .map(HttpApiApiInfo.Environments::getSubDomains)
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .map(subDomain -> DomainResult.builder()
+                        .domain(subDomain.getName())
+                        .protocol(subDomain.getProtocol())
+                        .networkType(subDomain.getNetworkType())
+                        .build())
+                .filter(result -> result.getDomain() != null);
+
+        Stream<DomainResult> customDomains = apiInfo.getEnvironments()
+                .stream()
+                .map(HttpApiApiInfo.Environments::getCustomDomains)
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .map(customDomain -> DomainResult.builder()
+                        .domain(customDomain.getName())
+                        .protocol(customDomain.getProtocol())
+                        .build())
+                .filter(result -> result.getDomain() != null);
+
+        return Stream.concat(customDomains, subDomains)
+                .collect(Collectors.toList());
+    }
+
+    protected List<DomainResult> fetchDefaultDomains(Gateway gateway) {
+        APIGClient client = getClient(gateway);
+        CompletableFuture<ListEnvironmentsResponse> f = client.execute(c ->
+                c.listEnvironments(ListEnvironmentsRequest.builder()
+                        .gatewayId(gateway.getGatewayId())
+                        .gatewayType(gateway.getGatewayType().getType())
+                        .build()));
+
+        ListEnvironmentsResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+        }
+
+        List<EnvironmentInfo> items = response.getBody().getData().getItems();
+        if (CollUtil.isEmpty(items)) {
+            return Collections.emptyList();
+        }
+
+        // Default Environment
+        EnvironmentInfo env = items.get(0);
+
+        return Optional.ofNullable(env.getSubDomainInfos())
+                .orElse(Collections.emptyList())
+                .stream()
+                .map(domain -> DomainResult.builder()
+                        .domain(domain.getName())
+                        .protocol(Optional.ofNullable(domain.getProtocol())
+                                .map(String::toLowerCase)
+                                .orElse(null))
+                        .networkType(domain.getNetworkType())
                         .build())
                 .collect(Collectors.toList());
     }

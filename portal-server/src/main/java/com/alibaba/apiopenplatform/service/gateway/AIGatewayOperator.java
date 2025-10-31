@@ -20,6 +20,7 @@
 package com.alibaba.apiopenplatform.service.gateway;
 
 import cn.hutool.core.codec.Base64;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
@@ -29,6 +30,7 @@ import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
 import com.alibaba.apiopenplatform.service.gateway.client.PopGatewayClient;
@@ -49,16 +51,49 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
 public class AIGatewayOperator extends APIGOperator {
 
+    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers2(Gateway gateway, int page, int size) {
+        APIGClient client = getClient(gateway);
+
+        CompletableFuture<ListMcpServersResponse> response = client.execute(c ->
+                c.listMcpServers(ListMcpServersRequest.builder()
+                        .gatewayId(gateway.getGatewayId())
+                        .pageNumber(page)
+                        .pageSize(size)
+                        .build())
+        );
+
+        ListMcpServersResponse result = response.join();
+        if (200 != result.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, result.getBody().getMessage());
+        }
+
+        List<APIGMCPServerResult> mcpServers = Optional.ofNullable(result.getBody().getData().getItems())
+                .map(items -> items.stream()
+                        .map(item -> {
+                            APIGMCPServerResult mcpServer = new APIGMCPServerResult();
+                            mcpServer.setMcpServerId(item.getMcpServerId());
+                            mcpServer.setMcpServerName(item.getName());
+//                            mcpServer.setApiId(item.getApiId());
+                            mcpServer.setMcpRouteId(item.getRouteId());
+                            return mcpServer;
+                        })
+                        .collect(Collectors.toList()))
+                .orElse(new ArrayList<>());
+
+        return PageResult.of(mcpServers, page, size, result.getBody().getData().getTotalSize());
+    }
+
     @Override
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
         PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
 
-        Map<String , String> queryParams = MapUtil.<String, String>builder()
+        Map<String, String> queryParams = MapUtil.<String, String>builder()
                 .put("gatewayId", gateway.getGatewayId())
                 .put("pageNumber", String.valueOf(page))
                 .put("pageSize", String.valueOf(size))
@@ -112,52 +147,119 @@ public class AIGatewayOperator extends APIGOperator {
     @Override
     public String fetchMcpConfig(Gateway gateway, Object conf) {
         APIGRefConfig config = (APIGRefConfig) conf;
-        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
-        String mcpServerId = config.getMcpServerId();
+        APIGClient client = getClient(gateway);
         MCPConfigResult mcpConfig = new MCPConfigResult();
 
-        return client.execute("/v1/mcp-servers/" + mcpServerId, MethodType.GET, null, data -> {
-            mcpConfig.setMcpServerName(data.getStr("name"));
-
-            // mcpServer config
-            MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
-            String path = data.getStr("mcpServerPath");
-            String exposedUriPath = data.getStr("exposedUriPath");
-            if (StrUtil.isNotBlank(exposedUriPath)) {
-                path += exposedUriPath;
-            }
-            serverConfig.setPath(path);
-
-            JSONArray domains = data.getJSONArray("domainInfos");
-            if (domains != null && !domains.isEmpty()) {
-                serverConfig.setDomains(domains.stream()
-                        .map(JSONObject.class::cast)
-                        .map(json -> MCPConfigResult.Domain.builder()
-                                .domain(json.getStr("name"))
-                                .protocol(Optional.ofNullable(json.getStr("protocol"))
-                                        .map(String::toLowerCase)
-                                        .orElse(null))
-                                .build())
-                        .collect(Collectors.toList()));
-            }
-            mcpConfig.setMcpServerConfig(serverConfig);
-
-            // meta
-            MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
-            meta.setSource(GatewayType.APIG_AI.name());
-            meta.setProtocol(data.getStr("protocol"));
-            meta.setCreateFromType(data.getStr("createFromType"));
-            mcpConfig.setMeta(meta);
-
-            // tools
-            String tools = data.getStr("mcpServerConfig");
-            if (StrUtil.isNotBlank(tools)) {
-                mcpConfig.setTools(Base64.decodeStr(tools));
-            }
-
-            return JSONUtil.toJsonStr(mcpConfig);
+        CompletableFuture<GetMcpServerResponse> f = client.execute(c -> {
+            GetMcpServerRequest request = GetMcpServerRequest.builder()
+                    .mcpServerId(config.getMcpServerId())
+                    .build();
+            return c.getMcpServer(request);
         });
+
+        GetMcpServerResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
+        }
+        GetMcpServerResponseBody.Data resp = response.getBody().getData();
+
+        // mcpServer name
+        mcpConfig.setMcpServerName(resp.getName());
+        // mcpServer config
+        MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
+
+        String path = resp.getMcpServerPath();
+        String exposedUriPath = resp.getExposedUriPath();
+        if (StrUtil.isNotBlank(exposedUriPath)) {
+            path += exposedUriPath;
+        }
+        serverConfig.setPath(path);
+
+        // domains
+        // default domains in gateway
+        List<DomainResult> defaultDomains = fetchDefaultDomains(gateway);
+        List<DomainResult> mcpDomains = Optional.ofNullable(resp.getDomainInfos())
+                .orElse(Collections.emptyList())
+                .stream()
+                .map(d -> DomainResult.builder()
+                        .domain(d.getName())
+                        .protocol(Optional.ofNullable(d.getProtocol())
+                                .map(String::toLowerCase)
+                                .orElse(null))
+                        .build())
+                .collect(Collectors.toList());
+
+        serverConfig.setDomains(
+                Stream.concat(mcpDomains.stream(), defaultDomains.stream())
+                        .collect(Collectors.toList())
+        );
+        mcpConfig.setMcpServerConfig(serverConfig);
+
+        // meta
+        MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
+        meta.setSource(GatewayType.APIG_AI.name());
+        meta.setProtocol(resp.getProtocol());
+        meta.setCreateFromType(resp.getCreateFromType());
+        mcpConfig.setMeta(meta);
+
+        // tools
+        String tools = resp.getMcpServerConfig();
+        if (StrUtil.isNotBlank(tools)) {
+            mcpConfig.setTools(Base64.decodeStr(tools));
+        }
+
+        return JSONUtil.toJsonStr(mcpConfig);
     }
+
+//    @Override
+//    public String fetchMcpConfig(Gateway gateway, Object conf) {
+//        APIGRefConfig config = (APIGRefConfig) conf;
+//        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
+//        String mcpServerId = config.getMcpServerId();
+//        MCPConfigResult mcpConfig = new MCPConfigResult();
+//
+//        return client.execute("/v1/mcp-servers/" + mcpServerId, MethodType.GET, null, data -> {
+//            mcpConfig.setMcpServerName(data.getStr("name"));
+//
+//            // mcpServer config
+//            MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
+//            String path = data.getStr("mcpServerPath");
+//            String exposedUriPath = data.getStr("exposedUriPath");
+//            if (StrUtil.isNotBlank(exposedUriPath)) {
+//                path += exposedUriPath;
+//            }
+//            serverConfig.setPath(path);
+//
+//            JSONArray domains = data.getJSONArray("domainInfos");
+//            if (domains != null && !domains.isEmpty()) {
+//                serverConfig.setDomains(domains.stream()
+//                        .map(JSONObject.class::cast)
+//                        .map(json -> MCPConfigResult.Domain.builder()
+//                                .domain(json.getStr("name"))
+//                                .protocol(Optional.ofNullable(json.getStr("protocol"))
+//                                        .map(String::toLowerCase)
+//                                        .orElse(null))
+//                                .build())
+//                        .collect(Collectors.toList()));
+//            }
+//            mcpConfig.setMcpServerConfig(serverConfig);
+//
+//            // meta
+//            MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
+//            meta.setSource(GatewayType.APIG_AI.name());
+//            meta.setProtocol(data.getStr("protocol"));
+//            meta.setCreateFromType(data.getStr("createFromType"));
+//            mcpConfig.setMeta(meta);
+//
+//            // tools
+//            String tools = data.getStr("mcpServerConfig");
+//            if (StrUtil.isNotBlank(tools)) {
+//                mcpConfig.setTools(Base64.decodeStr(tools));
+//            }
+//
+//            return JSONUtil.toJsonStr(mcpConfig);
+//        });
+//    }
 
     public String fetchMcpConfig_V1(Gateway gateway, Object conf) {
         APIGRefConfig config = (APIGRefConfig) conf;
@@ -173,7 +275,7 @@ public class AIGatewayOperator extends APIGOperator {
         }
         if (httpRoute.getDomainInfos() != null) {
             c.setDomains(httpRoute.getDomainInfos().stream()
-                    .map(domainInfo -> MCPConfigResult.Domain.builder()
+                    .map(domainInfo -> DomainResult.builder()
                             .domain(domainInfo.getName())
                             .protocol(Optional.ofNullable(domainInfo.getProtocol())
                                     .map(String::toLowerCase)

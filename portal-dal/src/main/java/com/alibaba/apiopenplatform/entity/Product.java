@@ -19,10 +19,10 @@
 
 package com.alibaba.apiopenplatform.entity;
 
-import com.alibaba.apiopenplatform.converter.ProductIconConverter;
+import com.alibaba.apiopenplatform.converter.IconConverter;
 import com.alibaba.apiopenplatform.support.enums.ProductStatus;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
-import com.alibaba.apiopenplatform.support.product.ProductIcon;
+import com.alibaba.apiopenplatform.support.product.Icon;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -64,11 +64,8 @@ public class Product extends BaseEntity {
     private String document;
 
     @Column(name = "icon", columnDefinition = "json")
-    @Convert(converter = ProductIconConverter.class)
-    private ProductIcon icon;
-
-    @Column(name = "category", length = 64)
-    private String category;
+    @Convert(converter = IconConverter.class)
+    private Icon icon;
 
     @Column(name = "status", length = 64)
     @Enumerated(EnumType.STRING)
