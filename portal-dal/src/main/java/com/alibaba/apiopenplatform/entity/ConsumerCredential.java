@@ -41,7 +41,7 @@ public class ConsumerCredential extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "consumer_id", nullable = false)
+    @Column(name = "consumer_id", length = 64, nullable = false)
     private String consumerId;
 
     @Column(name = "apikey_config", columnDefinition = "json")

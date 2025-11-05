@@ -21,8 +21,12 @@ package com.alibaba.apiopenplatform.service.gateway;
 
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
 import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
 import com.alibaba.apiopenplatform.service.gateway.client.GatewayClient;
@@ -48,9 +52,17 @@ public abstract class GatewayOperator<T> {
 
     abstract public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size);
 
+    abstract public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size);
+
+    abstract public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size);
+
     abstract public String fetchAPIConfig(Gateway gateway, Object config);
 
     abstract public String fetchMcpConfig(Gateway gateway, Object conf);
+
+    abstract public String fetchAgentConfig(Gateway gateway, Object conf);
+
+    abstract public String fetchModelConfig(Gateway gateway, Object conf);
 
     abstract public PageResult<GatewayResult> fetchGateways(Object param, int page, int size);
 
@@ -62,8 +74,9 @@ public abstract class GatewayOperator<T> {
 
     /**
      * 检查消费者是否存在于网关中
+     *
      * @param consumerId 消费者ID
-     * @param config 网关配置
+     * @param config     网关配置
      * @return 是否存在
      */
     abstract public boolean isConsumerExists(String consumerId, GatewayConfig config);
@@ -78,10 +91,11 @@ public abstract class GatewayOperator<T> {
 
     /**
      * 获取网关控制台仪表盘链接
+     *
      * @param gateway 网关实体
      * @return 仪表盘访问链接
      */
-    abstract public String getDashboard(Gateway gateway,String type);
+    abstract public String getDashboard(Gateway gateway, String type);
 
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {
@@ -93,18 +107,8 @@ public abstract class GatewayOperator<T> {
         );
     }
 
-//    @SuppressWarnings("unchecked")
-//    protected T getClient(Gateway gateway) {
-//        String clientKey = gateway.getGatewayType().isAPIG() ?
-//                gateway.getApigConfig().buildUniqueKey() : gateway.getHigressConfig().buildUniqueKey();
-//        return (T) clientCache.computeIfAbsent(
-//                clientKey,
-//                key -> createClient(gateway)
-//        );
-//    }
-
     /**
-     * 创建网关客户端
+     * Create a gateway client for the given gateway.
      */
     private GatewayClient createClient(Gateway gateway) {
         switch (gateway.getGatewayType()) {
@@ -123,7 +127,7 @@ public abstract class GatewayOperator<T> {
     }
 
     /**
-     * 移除网关客户端
+     * Remove a gateway client for the given gateway.
      */
     public void removeClient(String instanceId) {
         GatewayClient client = clientCache.remove(instanceId);

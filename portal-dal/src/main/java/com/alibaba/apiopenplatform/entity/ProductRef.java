@@ -80,6 +80,12 @@ public class ProductRef extends BaseEntity {
     @Column(name = "mcp_config", columnDefinition = "json")
     private String mcpConfig;
 
+    @Column(name = "agent_config", columnDefinition = "json")
+    private String agentConfig;
+
+    @Column(name = "model_config", columnDefinition = "json")
+    private String modelConfig;
+
     @Column(name = "enabled")
     private Boolean enabled;
 }

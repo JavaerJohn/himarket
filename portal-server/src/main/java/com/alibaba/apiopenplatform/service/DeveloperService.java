@@ -24,9 +24,9 @@ import com.alibaba.apiopenplatform.dto.params.developer.CreateDeveloperParam;
 import com.alibaba.apiopenplatform.dto.params.developer.CreateExternalDeveloperParam;
 import com.alibaba.apiopenplatform.dto.params.developer.QueryDeveloperParam;
 import com.alibaba.apiopenplatform.dto.params.developer.UpdateDeveloperParam;
-import com.alibaba.apiopenplatform.dto.result.AuthResult;
-import com.alibaba.apiopenplatform.dto.result.DeveloperResult;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
+import com.alibaba.apiopenplatform.dto.result.common.AuthResult;
+import com.alibaba.apiopenplatform.dto.result.developer.DeveloperResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.support.enums.DeveloperStatus;
 import org.springframework.data.domain.Pageable;
 

@@ -50,6 +50,8 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
         type: oidcConfig.type,
         configMode: hasManualEndpoints ? 'manual' : 'auto',
         ...oidcConfig.authCodeConfig,
+        // 设置OIDC专用的授权模式字段
+        oidcGrantType: oidcConfig.grantType || 'AUTHORIZATION_CODE',
         // 身份映射字段可能在根级别或authCodeConfig中
         userIdField: oidcConfig.identityMapping?.userIdField || oidcConfig.authCodeConfig?.identityMapping?.userIdField,
         userNameField: oidcConfig.identityMapping?.userNameField || oidcConfig.authCodeConfig?.identityMapping?.userNameField,
@@ -63,7 +65,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
         name: oauth2Config.name,
         enabled: oauth2Config.enabled,
         type: oauth2Config.type,
-        grantType: oauth2Config.grantType || GrantType.JWT_BEARER, // 确保有默认值
+        oauth2GrantType: oauth2Config.grantType || GrantType.JWT_BEARER, // 使用oauth2GrantType字段
         userIdField: oauth2Config.identityMapping?.userIdField,
         userNameField: oauth2Config.identityMapping?.userNameField,
         emailField: oauth2Config.identityMapping?.emailField,
@@ -105,7 +107,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
         // 为不同类型设置默认值
         if (values.type === AuthenticationType.OAUTH2) {
           form.setFieldsValue({
-            grantType: GrantType.JWT_BEARER,
+            oauth2GrantType: GrantType.JWT_BEARER,
             enabled: true
           })
         } else if (values.type === AuthenticationType.OIDC) {
@@ -181,7 +183,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
           name: values.name,
           logoUrl: null,
           enabled: values.enabled ?? true,
-          grantType: 'AUTHORIZATION_CODE' as const,
+          grantType: values.oidcGrantType || 'AUTHORIZATION_CODE' as const, // 使用oidcGrantType字段
           authCodeConfig,
           // 根级别的身份映射（为兼容后端格式）
           identityMapping: authCodeConfig.identityMapping,
@@ -189,7 +191,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
         } as (OidcConfig & { type: AuthenticationType.OIDC })
       } else {
         // OAuth2配置：直接创建OAuth2Config格式
-        const grantType = values.grantType || GrantType.JWT_BEARER // 确保有默认值
+        const grantType = values.oauth2GrantType || GrantType.JWT_BEARER // 使用oauth2GrantType字段
         newConfig = {
           provider: values.provider,
           name: values.name,
@@ -384,7 +386,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
   const renderOidcForm = () => (
     <div className="space-y-6">
       <Form.Item
-        name="grantType"
+        name="oidcGrantType"
         label="授权模式"
         initialValue="AUTHORIZATION_CODE"
       >
@@ -575,7 +577,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
   const renderOAuth2Form = () => (
     <div className="space-y-6">
       <Form.Item
-        name="grantType"
+        name="oauth2GrantType"
         label="授权模式"
         initialValue={GrantType.JWT_BEARER}
         rules={[{required: true}]}

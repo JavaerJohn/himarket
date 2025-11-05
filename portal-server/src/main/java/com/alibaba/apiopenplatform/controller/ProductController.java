@@ -27,17 +27,18 @@ import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
 import com.alibaba.apiopenplatform.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.apiopenplatform.dto.params.product.CreateProductParam;
 import com.alibaba.apiopenplatform.dto.params.product.CreateProductRefParam;
+import com.alibaba.apiopenplatform.dto.result.ProductCategoryResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.product.ProductPublicationResult;
+import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
+import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
+import com.alibaba.apiopenplatform.dto.result.product.SubscriptionResult;
 import com.alibaba.apiopenplatform.dto.params.product.QueryProductParam;
 import com.alibaba.apiopenplatform.dto.params.product.QueryProductSubscriptionParam;
 import com.alibaba.apiopenplatform.dto.params.product.UpdateProductParam;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
-import com.alibaba.apiopenplatform.dto.result.ProductCategoryResult;
-import com.alibaba.apiopenplatform.dto.result.ProductPublicationResult;
-import com.alibaba.apiopenplatform.dto.result.ProductRefResult;
-import com.alibaba.apiopenplatform.dto.result.ProductResult;
-import com.alibaba.apiopenplatform.dto.result.SubscriptionResult;
-import com.alibaba.apiopenplatform.service.ProductService;
+
 import com.alibaba.apiopenplatform.service.ProductCategoryService;
+import com.alibaba.apiopenplatform.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -61,15 +62,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProductController {
 
     private final ProductService productService;
-    
+
     private final ProductCategoryService productCategoryService;
 
     @Operation(summary = "创建API产品")
     @PostMapping
     @AdminAuth
     public ProductResult createProduct(@RequestBody @Valid CreateProductParam param) {
-        ProductResult result = productService.createProduct(param);
-        return result;
+        return productService.createProduct(param);
     }
 
     @Operation(summary = "获取API产品列表")
@@ -89,8 +89,7 @@ public class ProductController {
     @PutMapping("/{productId}")
     @AdminAuth
     public ProductResult updateProduct(@PathVariable String productId, @RequestBody @Valid UpdateProductParam param) {
-        ProductResult result = productService.updateProduct(productId, param);
-        return result;
+        return productService.updateProduct(productId, param);
     }
 
     @Operation(summary = "发布API产品")
@@ -163,7 +162,7 @@ public class ProductController {
     public List<ProductCategoryResult> getProductCategories(@PathVariable String productId) {
         return productCategoryService.listCategoriesForProduct(productId);
     }
-    
+
     @Operation(summary = "设置产品类别")
     @PostMapping("/{productId}/categories")
     @AdminAuth

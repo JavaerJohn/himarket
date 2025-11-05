@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Skeleton } from "antd";
+import { ApiOutlined, ToolOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
 import { UserInfo } from "./UserInfo";
 
 interface NavigationProps {
@@ -16,17 +17,37 @@ export function Navigation({ loading = false }: NavigationProps) {
     return location.pathname.startsWith(path);
   };
 
-  const getNavLinkClass = (path: string) => {
-    const baseClass = "font-medium transition-colors";
-    return isActive(path) 
-      ? `${baseClass} text-blue-600 border-b-2 border-blue-600 pb-1` 
-      : `${baseClass} text-gray-700 hover:text-gray-900`;
-  };
+  const navigationItems = [
+    { 
+      path: '/apis', 
+      icon: <ApiOutlined />, 
+      title: 'APIs', 
+      subtitle: 'REST接口' 
+    },
+    { 
+      path: '/mcp', 
+      icon: <ToolOutlined />, 
+      title: 'MCP', 
+      subtitle: '工具集成' 
+    },
+    { 
+      path: '/models', 
+      icon: <BulbOutlined />, 
+      title: 'Model', 
+      subtitle: 'AI模型' 
+    },
+    { 
+      path: '/agents', 
+      icon: <RobotOutlined />, 
+      title: 'Agent', 
+      subtitle: '智能助手' 
+    }
+  ];
 
   return (
-    <nav className="bg-[#f4f4f6] sticky top-0 z-50">
+    <nav className="sticky top-4 z-50">
       <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="bg-[#f4f4f6]/95 backdrop-blur-sm rounded-xl border border-gray-200 flex justify-between items-center h-20 px-6">
           <div className="flex items-center">
             {loading ? (
               <div className="flex items-center space-x-2">
@@ -49,47 +70,44 @@ export function Navigation({ loading = false }: NavigationProps) {
             )}
           </div>
           
-          <div className="hidden md:flex items-center space-x-8 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="hidden md:flex items-center absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {loading ? (
-              <>
-                <Skeleton.Input active size="small" style={{ width: 100, height: 20 }} />
-                <Skeleton.Input active size="small" style={{ width: 60, height: 20 }} />
-                <Skeleton.Input active size="small" style={{ width: 60, height: 20 }} />
-                <Skeleton.Input active size="small" style={{ width: 60, height: 20 }} />
-              </>
+              <div className="flex space-x-3">
+                <Skeleton.Input active size="small" style={{ width: 100, height: 60 }} />
+                <Skeleton.Input active size="small" style={{ width: 100, height: 60 }} />
+                <Skeleton.Input active size="small" style={{ width: 100, height: 60 }} />
+                <Skeleton.Input active size="small" style={{ width: 100, height: 60 }} />
+              </div>
             ) : (
-              <>
-                <Link 
-                  to="/getting-started" 
-                  className={getNavLinkClass('/getting-started')}
-                >
-                  Getting Started
-                </Link>
-                <Link 
-                  to="/apis" 
-                  className={getNavLinkClass('/apis')}
-                >
-                  APIs
-                </Link>
-                <Link 
-                  to="/mcp" 
-                  className={getNavLinkClass('/mcp')}
-                >
-                  MCP
-                </Link>
-              </>
+              <div className="flex space-x-3">
+                {navigationItems.map((item) => (
+                  <Link 
+                    key={item.path}
+                    to={item.path} 
+                    className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 flex flex-col items-center justify-center min-w-[100px] ${
+                      isActive(item.path) 
+                        ? 'bg-blue-50/80 text-blue-700 border border-blue-200/50 shadow-sm' 
+                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50/50 border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-1 mb-1">
+                      <div className={`text-lg ${isActive(item.path) ? 'text-blue-600' : 'text-gray-500'}`}>
+                        {item.icon}
+                      </div>
+                      <div className="text-sm font-semibold leading-tight">
+                        {item.title}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 leading-tight">
+                      {item.subtitle}
+                    </div>
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
           
           <div className="flex items-center space-x-4">
-            {/* <div className="hidden sm:block">
-              <Input
-                placeholder="Search"
-                prefix={<SearchOutlined className="text-gray-400" />}
-                className="w-48 lg:w-64"
-                size="middle"
-              />
-            </div> */}
             {loading ? (
               <Skeleton.Avatar size={32} active />
             ) : (

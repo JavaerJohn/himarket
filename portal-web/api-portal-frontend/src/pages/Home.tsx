@@ -1,8 +1,9 @@
-import { Button, Card, Typography } from "antd";
+import { Button, Typography } from "antd";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useEffect } from "react";
 import { getTokenFromCookie } from "../lib/utils";
+import { FileTextOutlined, DownloadOutlined, CustomerServiceOutlined, CodeOutlined } from "@ant-design/icons";
 
 const { Title, Paragraph } = Typography;
 
@@ -18,45 +19,60 @@ function HomePage() {
 
   return (
     <Layout>
-      <div className="text-center">
-        <Title level={1} className="text-6xl font-bold text-gray-900 mb-6">
-          HiMarket AI 开放平台
-        </Title>
-        <Paragraph className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          低成本接入企业级AI能力，助力业务快速创新
-        </Paragraph>
-        <Link to="/apis">
-          <Button 
-            type="primary" 
-            size="large" 
-            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg"
-          >
-            Get started
-          </Button>
-        </Link>
-      </div>
-      
-      <div className="mt-16">
-        <Card className="bg-gradient-to-r from-purple-600 via-blue-600 to-purple-800 border-0">
-          <div className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-blue-600 to-purple-800 opacity-90"></div>
-            <div className="absolute inset-0 grid grid-cols-8 gap-4">
-              {Array.from({ length: 32 }, (_, i) => (
-                <div key={i} className="bg-white/10 rounded-full aspect-square opacity-30"></div>
-              ))}
+      <div className="text-center pt-12 pb-16">
+        {/* 标题区域 */}
+        <div className="mb-16">
+          <Title level={1} className="text-5xl font-bold text-gray-900 mb-8">
+            HiMarket 企业级AI开放平台
+          </Title>
+          <Paragraph className="text-xl text-gray-600">
+            开箱即用，快速集成
+          </Paragraph>
+        </div>
+        
+        {/* Get Started 按钮 */}
+        <div className="mb-24">
+          <Link to="/apis">
+            <Button 
+              type="primary" 
+              size="large" 
+              className="px-6 py-2 text-base h-auto rounded-lg"
+            >
+              Get Started
+            </Button>
+          </Link>
+        </div>
+        
+        {/* 特色功能卡片 */}
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="rounded-lg p-6 border border-gray-200 text-center">
+            <div className="mb-3">
+              <FileTextOutlined className="text-3xl text-gray-600" />
             </div>
-            <div className="relative z-10 h-64 flex items-center justify-center">
-              <div className="text-white text-center">
-                <Title level={2} className="text-3xl font-bold mb-4 text-white">
-                  探索 AI API 服务
-                </Title>
-                <Paragraph className="text-purple-100 text-lg">
-                  丰富多样的 AI 能力，助您打造智能应用
-                </Paragraph>
-              </div>
-            </div>
+            <h3 className="text-sm font-medium text-gray-700">开发指南</h3>
           </div>
-        </Card>
+
+          <div className="rounded-lg p-6 border border-gray-200 text-center">
+            <div className="mb-3">
+              <CodeOutlined className="text-3xl text-gray-600" />
+            </div>
+            <h3 className="text-sm font-medium text-gray-700">API调试</h3>
+          </div>
+
+          <div className="rounded-lg p-6 border border-gray-200 text-center">
+            <div className="mb-3">
+              <DownloadOutlined className="text-3xl text-gray-600" />
+            </div>
+            <h3 className="text-sm font-medium text-gray-700">SDK下载</h3>
+          </div>
+
+          <div className="rounded-lg p-6 border border-gray-200 text-center">
+            <div className="mb-3">
+              <CustomerServiceOutlined className="text-3xl text-gray-600" />
+            </div>
+            <h3 className="text-sm font-medium text-gray-700">技术支持</h3>
+          </div>
+        </div>
       </div>
     </Layout>
   );

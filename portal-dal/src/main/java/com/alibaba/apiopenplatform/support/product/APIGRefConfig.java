@@ -29,10 +29,21 @@ public class APIGRefConfig {
     private String apiName;
 
     /**
-     * MCP标识信息
+     * MCP Identify Info
      */
     private String mcpServerId;
     private String mcpRouteId;
     private String mcpServerName;
 
+    /**
+     * Agent Identify Info
+     */
+    private String agentApiId;
+    private String agentApiName;
+
+    /**
+     * Model Identify Info
+     */
+    private String modelApiId;
+    private String modelApiName;
 }

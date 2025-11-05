@@ -92,12 +92,12 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                         <div className="col-span-2 flex items-center gap-2">
                             <LinkOutlined className="text-blue-500" />
                             <a 
-                                href={`http://${portal.portalDomainConfig?.[0]?.domain}`} 
+                                href={`http://${portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}`} 
                                 target="_blank"
                                 rel="noopener noreferrer" 
                                 className="text-xs text-blue-600 hover:underline"
                             >
-                                {portal.portalDomainConfig?.[0]?.domain}
+                                {portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}
                             </a>
                         </div>
                         <span className="text-xs text-gray-600">账号密码登录:</span>

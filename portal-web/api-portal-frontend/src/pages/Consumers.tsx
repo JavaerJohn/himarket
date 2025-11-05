@@ -1,5 +1,5 @@
-import { Card, Table, Button, Space, Typography, Input, Avatar } from "antd";
-import { SearchOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import { Card, Table, Button, Space, Typography, Input } from "antd";
+import { DeleteOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { Layout } from "../components/Layout";
 import { useEffect, useState, useCallback } from "react";
 import { getConsumers, deleteConsumer, createConsumer } from "../lib/api";
@@ -8,7 +8,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { formatDateTime } from "../lib/utils";
 import type { Consumer } from "../types/consumer";
 
-const { Title, Paragraph } = Typography;
+const { Title } = Typography;
 const { Search } = Input;
 
 function ConsumersPage() {
@@ -96,14 +96,9 @@ function ConsumersPage() {
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: Consumer) => (
-        <div className="flex items-center space-x-3">
-          <Avatar className="bg-blue-500">
-            {name?.charAt(0).toUpperCase()}
-          </Avatar>
-          <div>
-            <div className="font-medium">{name}</div>
-            <div className="text-xs text-gray-400">{record.description}</div>
-          </div>
+        <div>
+          <div className="font-medium">{name}</div>
+          <div className="text-xs text-gray-400">{record.description}</div>
         </div>
       ),
     },
@@ -136,31 +131,27 @@ function ConsumersPage() {
 
   return (
     <Layout>
-      <div className="mb-8">
-        <Title level={1} className="mb-2">
-          {productId ? '产品订阅管理' : '消费者管理'}
+      <div className="mb-4">
+        <Title level={2} className="mb-2">
+          {productId ? '产品订阅管理' : '消费者'}
         </Title>
-        <Paragraph className="text-gray-600">
-          {productId ? '管理此产品的消费者订阅情况' : '管理API的消费者用户和订阅信息'}
-        </Paragraph>
       </div>
 
-      <Card>
-        <div className="mb-4 flex gap-4">
-          {!productId && (
-            <Button type="primary" onClick={() => setAddModalOpen(true)}>
-              新增消费者
-            </Button>
-          )}
+      <Card style={{ borderRadius: '12px' }}>
+        <div className="mb-4 flex justify-between items-center">
           <Search
             placeholder={"搜索消费者..."}
-            prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 300, borderRadius: '8px' }}
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             onSearch={handleSearch}
             allowClear
           />
+          {!productId && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalOpen(true)}>
+              新增消费者
+            </Button>
+          )}
         </div>
         <Table
           columns={columns}
@@ -173,7 +164,7 @@ function ConsumersPage() {
             pageSize,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+            showTotal: (total) => `共 ${total} 条`,
             onChange: (p, ps) => {
               setPage(p);
               setPageSize(ps);
@@ -209,16 +200,6 @@ function ConsumersPage() {
             />
           </div>
         </Modal>
-      </Card>
-
-      <Card title="消费者统计" className="mt-8">
-        <div className="flex justify-center">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{total}</div>
-            <div className="text-sm text-gray-500">总消费者</div>
-          </div>
-          {/* 其他统计项可根据接口返回字段补充 */}
-        </div>
       </Card>
     </Layout>
   );

@@ -14,10 +14,9 @@ import {
 } from "antd";
 import {
     PlusOutlined,
-    InfoCircleOutlined,
     CopyOutlined,
     DeleteOutlined,
-    EditOutlined
+    InfoCircleOutlined
 } from "@ant-design/icons";
 import api from "../../lib/api";
 import type {
@@ -246,16 +245,6 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
         }
     };
 
-    const openSourceModal = () => {
-        // 打开弹窗前将已保存值拷贝到编辑态和表单
-        const initSource = currentSource;
-        const initKey = initSource === 'Default' ? 'Authorization' : currentKey;
-        setEditingSource(initSource);
-        setEditingKey(initKey);
-        sourceForm.setFieldsValue({source: initSource, key: initKey});
-        setSourceModalVisible(true);
-    };
-
     const openCredentialModal = () => {
         // 打开弹窗前重置表单并设置初始值
         credentialForm.resetFields();
@@ -391,34 +380,10 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
 
     return (
         <>
-            <Card title="认证方式">
+            <Card title="凭证管理">
                 <Tabs defaultActiveKey="API_KEY">
                     <Tabs.TabPane tab="API Key" key="API_KEY">
                         <div className="mb-4">
-                            <div className="flex items-start space-x-2 mb-4">
-                                <InfoCircleOutlined className="text-blue-500 mt-1"/>
-                                <div className="text-sm text-gray-600">
-                                    API Key是一种简单的认证方式，客户端需要在请求中添加凭证，网关会验证API Key的合法性和权限。
-                                    API Key常用于简单场景，不涉及敏感操作，安全性相对较低，请注意凭证的管理与保护。
-                                </div>
-                            </div>
-
-                            {/* 凭证来源配置（展示已保存值）*/}
-                            <div className="mb-4 p-3 bg-gray-50 rounded border">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-sm font-medium text-gray-700">凭证来源</span>
-                                    <Button type="link" size="small" icon={<EditOutlined/>} onClick={openSourceModal}>
-                                        编辑
-                                    </Button>
-                                </div>
-                                {/* <div className="text-sm text-gray-600">
-                  {currentSource === 'Default' ? '' : `${currentSource}`}
-                </div> */}
-                                <div className="text-sm text-gray-600">
-                                    {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
-                                </div>
-                            </div>
-
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined/>}
@@ -442,13 +407,6 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
 
                     <Tabs.TabPane tab="HMAC" key="HMAC">
                         <div className="mb-4">
-                            <div className="flex items-start space-x-2 mb-4">
-                                <InfoCircleOutlined className="text-blue-500 mt-1"/>
-                                <div className="text-sm text-gray-600">
-                                    一种基于HMAC算法的AK/SK签名认证方式。客户端在调用API时，需要使用签名密钥对请求内容进行签名计算，
-                                    并将签名同步传输给服务器端进行签名验证。
-                                </div>
-                            </div>
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined/>}

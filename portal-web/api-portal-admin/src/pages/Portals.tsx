@@ -106,12 +106,12 @@ const PortalCard = memo(
           <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
             <LinkOutlined className="h-4 w-4 text-blue-500" />
             <Tooltip
-              title={portal.portalDomainConfig?.[0].domain}
+              title={portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}
               placement="top"
               color="#000"
             >
               <a
-                href={`http://${portal.portalDomainConfig?.[0].domain}`}
+                href={`http://${portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm"
@@ -126,7 +126,7 @@ const PortalCard = memo(
                   cursor: "pointer",
                 }}
               >
-                {portal.portalDomainConfig?.[0].domain}
+                {portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}
               </a>
             </Tooltip>
           </div>

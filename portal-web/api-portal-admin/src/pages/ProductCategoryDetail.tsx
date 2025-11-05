@@ -404,9 +404,9 @@ export default function ProductCategoryDetail() {
                         {product.type === "REST_API" ? (
                           <ApiOutlined className="text-blue-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                         ) : product.type === "AGENT_API" ? (
-                          <RobotOutlined className="text-orange-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                          <RobotOutlined className="text-gray-600 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                         ) : product.type === "MODEL_API" ? (
-                          <BulbOutlined className="text-purple-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                          <BulbOutlined className="text-gray-600 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                         ) : (
                           <McpServerIcon className="text-black mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                         )}

@@ -26,16 +26,17 @@ import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
-import com.alibaba.apiopenplatform.dto.params.gateway.ImportGatewayParam;
-import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
-import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
-import com.alibaba.apiopenplatform.dto.params.gateway.QueryGatewayParam;
-import com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam;
-import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.params.gateway.*;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.repository.GatewayRepository;
 import com.alibaba.apiopenplatform.repository.ProductRefRepository;
-import com.alibaba.apiopenplatform.service.AdpAIGatewayService;
 import com.alibaba.apiopenplatform.service.GatewayService;
 import com.alibaba.apiopenplatform.service.gateway.GatewayOperator;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
@@ -62,7 +63,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @SuppressWarnings("unchecked")
 @Slf4j
-public class GatewayServiceImpl implements GatewayService, ApplicationContextAware, AdpAIGatewayService, com.alibaba.apiopenplatform.service.ApsaraGatewayService {
+public class GatewayServiceImpl implements GatewayService, ApplicationContextAware {
 
     private final GatewayRepository gatewayRepository;
     private final ProductRefRepository productRefRepository;
@@ -72,17 +73,17 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     private final ContextHolder contextHolder;
 
     @Override
-    public PageResult<GatewayResult> fetchGateways(QueryAPIGParam param, int page, int size) {
+    public PageResult<GatewayResult> fetchAPIGGateways(QueryAPIGParam param, int page, int size) {
         return gatewayOperators.get(param.getGatewayType()).fetchGateways(param, page, size);
     }
 
     @Override
-    public PageResult<GatewayResult> fetchGateways(QueryAdpAIGatewayParam param, int page, int size) {
+    public PageResult<GatewayResult> fetchAdpGateways(QueryAdpAIGatewayParam param, int page, int size) {
         return gatewayOperators.get(GatewayType.ADP_AI_GATEWAY).fetchGateways(param, page, size);
     }
 
     @Override
-    public PageResult<GatewayResult> fetchGateways(QueryApsaraGatewayParam param, int page, int size) {
+    public PageResult<GatewayResult> fetchApsaraGateways(QueryApsaraGatewayParam param, int page, int size) {
         return gatewayOperators.get(GatewayType.APSARA_GATEWAY).fetchGateways(param, page, size);
     }
 
@@ -173,6 +174,18 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
+    public PageResult<AgentAPIResult> fetchAgentAPIs(String gatewayId, int page, int size) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchAgentAPIs(gateway, page, size);
+    }
+
+    @Override
+    public PageResult<ModelAPIResult> fetchModelAPIs(String gatewayId, int page, int size) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchModelAPIs(gateway, page, size);
+    }
+
+    @Override
     public String fetchAPIConfig(String gatewayId, Object config) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchAPIConfig(gateway, config);
@@ -182,6 +195,18 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     public String fetchMcpConfig(String gatewayId, Object conf) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchMcpConfig(gateway, conf);
+    }
+
+    @Override
+    public String fetchAgentConfig(String gatewayId, Object conf) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchAgentConfig(gateway, conf);
+    }
+
+    @Override
+    public String fetchModelConfig(String gatewayId, Object conf) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchModelConfig(gateway, conf);
     }
 
     @Override
@@ -267,9 +292,9 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public String getDashboard(String gatewayId,String type) {
+    public String getDashboard(String gatewayId, String type) {
         Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).getDashboard(gateway,type); //type: Portal,MCP,API
+        return getOperator(gateway).getDashboard(gateway, type); //type: Portal,MCP,API
     }
 
     private Specification<Gateway> buildGatewaySpec(QueryGatewayParam param) {

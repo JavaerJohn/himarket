@@ -21,12 +21,12 @@ package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.dto.params.consumer.QueryConsumerParam;
 import com.alibaba.apiopenplatform.dto.params.consumer.CreateConsumerParam;
-import com.alibaba.apiopenplatform.dto.result.ConsumerResult;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
-import com.alibaba.apiopenplatform.dto.result.ConsumerCredentialResult;
+import com.alibaba.apiopenplatform.dto.result.consumer.ConsumerResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.consumer.ConsumerCredentialResult;
 import com.alibaba.apiopenplatform.dto.params.consumer.CreateCredentialParam;
 import com.alibaba.apiopenplatform.dto.params.consumer.UpdateCredentialParam;
-import com.alibaba.apiopenplatform.dto.result.SubscriptionResult;
+import com.alibaba.apiopenplatform.dto.result.product.SubscriptionResult;
 import com.alibaba.apiopenplatform.dto.params.consumer.CreateSubscriptionParam;
 import com.alibaba.apiopenplatform.dto.params.consumer.QuerySubscriptionParam;
 import org.springframework.data.domain.Pageable;

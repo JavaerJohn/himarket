@@ -33,7 +33,7 @@ import lombok.Builder;
 @Builder
 @Entity
 @Table(name = "developer_external_identity", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"provider", "subject"})
+        @UniqueConstraint(columnNames = {"provider", "subject"}, name = "unique_provider_subject")
 })
 public class DeveloperExternalIdentity {
     @Id
@@ -54,6 +54,7 @@ public class DeveloperExternalIdentity {
     private String displayName;
 
     @Column(length = 32)
+    @Enumerated(EnumType.STRING)
     private DeveloperAuthType authType;
 
     @Column(columnDefinition = "json")

@@ -28,8 +28,7 @@ import remarkGfm from 'remark-gfm';
 import 'react-markdown-editor-lite/lib/index.css'
 
 function McpDetail() {
-  const { mcpName } = useParams();
-  const [loading, setLoading] = useState(true);
+  const { mcpProductId } = useParams();
   const [error, setError] = useState("");
   const [data, setData] = useState<Product | null>(null);
   const [mcpConfig, setMcpConfig] = useState<McpConfig | null>(null);
@@ -197,13 +196,12 @@ function McpDetail() {
 
   useEffect(() => {
     const fetchDetail = async () => {
-      if (!mcpName) {
+      if (!mcpProductId) {
         return;
       }
-      setLoading(true);
       setError("");
       try {
-        const response: ApiResponse<Product> = await api.get(`/products/${mcpName}`);
+        const response: ApiResponse<Product> = await api.get(`/products/${mcpProductId}`);
         if (response.code === "SUCCESS" && response.data) {
           setData(response.data);
 
@@ -231,12 +229,10 @@ function McpDetail() {
       } catch (error) {
         console.error("API请求失败:", error);
         setError("加载失败，请稍后重试");
-      } finally {
-        setLoading(false);
       }
     };
     fetchDetail();
-  }, [mcpName]);
+  }, [mcpProductId]);
 
   // 监听 mcpConfig 变化，重新生成连接配置
   useEffect(() => {
@@ -287,20 +283,17 @@ function McpDetail() {
 
   if (error) {
     return (
-      <Layout loading={loading}>
+      <Layout>
         <Alert message={error} type="error" showIcon className="my-8" />
       </Layout>
     );
   }
   if (!data) {
     return (
-      <Layout loading={loading}>
-        <Alert
-          message="未找到相关数据"
-          type="warning"
-          showIcon
-          className="my-8"
-        />
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <div>Loading...</div>
+        </div>
       </Layout>
     );
   }
@@ -311,7 +304,7 @@ function McpDetail() {
 
 
   return (
-    <Layout loading={loading}>
+    <Layout>
       <div className="mb-6">
         <ProductHeader
           name={name}
@@ -573,27 +566,35 @@ function McpDetail() {
                 <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
 
                 {/* 域名选择器 */}
-                {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 1 && (
+                {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 0 && (
                   <div className="mb-2">
-                    <Select
-                      value={selectedDomainIndex}
-                      onChange={setSelectedDomainIndex}
-                      className="w-full"
-                      placeholder="选择域名"
-                      size="middle"
-                      style={{
-                        borderRadius: '6px',
-                        fontSize: '12px'
-                      }}
-                    >
-                      {getDomainOptions(mcpConfig.mcpServerConfig.domains).map((option) => (
-                        <Select.Option key={option.value} value={option.value}>
-                          <span className="text-xs text-gray-900 font-mono">
-                            {option.label}
-                          </span>
-                        </Select.Option>
-                      ))}
-                    </Select>
+                    <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                        域名
+                      </div>
+                      <div className="flex-1">
+                        <Select
+                          value={selectedDomainIndex}
+                          onChange={setSelectedDomainIndex}
+                          className="w-full"
+                          placeholder="选择域名"
+                          size="middle"
+                          bordered={false}
+                          style={{
+                            fontSize: '12px',
+                            height: '100%'
+                          }}
+                        >
+                          {getDomainOptions(mcpConfig.mcpServerConfig.domains).map((option) => (
+                            <Select.Option key={option.value} value={option.value}>
+                              <span className="text-xs text-gray-900 font-mono">
+                                {option.label}
+                              </span>
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
                   </div>
                 )}
 

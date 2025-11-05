@@ -10,6 +10,10 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from './pages/Profile'
 import McpDetail from "./pages/McpDetail";
+import Agent from "./pages/Agent";
+import AgentDetail from "./pages/AgentDetail";
+import Model from "./pages/Model";
+import ModelDetail from "./pages/ModelDetail";
 import Callback from "./pages/Callback";
 import OidcCallback from "./pages/OidcCallback";
 
@@ -19,11 +23,15 @@ export function Router() {
       <Route path="/" element={<Home />} />
       <Route path="/getting-started" element={<GettingStarted />} />
       <Route path="/apis" element={<Apis />} />
-      <Route path="/apis/:id" element={<ApiDetail />} />
+      <Route path="/apis/:apiProductId" element={<ApiDetail />} />
       <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />
       <Route path="/consumers" element={<Consumers />} />
       <Route path="/mcp" element={<Mcp />} />
-      <Route path="/mcp/:mcpName" element={<McpDetail />} />
+      <Route path="/mcp/:mcpProductId" element={<McpDetail />} />
+      <Route path="/agents" element={<Agent />} />
+      <Route path="/agents/:agentProductId" element={<AgentDetail />} />
+      <Route path="/models" element={<Model />} />
+      <Route path="/models/:modelProductId" element={<ModelDetail />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/profile" element={<Profile />} />

@@ -28,8 +28,8 @@ interface UpdatedProduct extends Omit<Product, 'apiSpec'> {
 }
 
 function ApiDetailPage() {
-  const { id } = useParams();
-  const [loading, setLoading] = useState(true);
+  const { apiProductId } = useParams();
+  const [, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [apiData, setApiData] = useState<UpdatedProduct | null>(null);
   const [baseUrl, setBaseUrl] = useState<string>('');
@@ -37,15 +37,15 @@ function ApiDetailPage() {
   const [exampleMethod, setExampleMethod] = useState<string>('GET');
 
   useEffect(() => {
-    if (!id) return;
+    if (!apiProductId) return;
     fetchApiDetail();
-  }, [id]);
+  }, [apiProductId]);
 
   const fetchApiDetail = async () => {
     setLoading(true);
     setError('');
     try {
-      const response: ApiResponse<UpdatedProduct> = await api.get(`/products/${id}`);
+      const response: ApiResponse<UpdatedProduct> = await api.get(`/products/${apiProductId}`);
       if (response.code === "SUCCESS" && response.data) {
         setApiData(response.data);
         
@@ -100,7 +100,7 @@ function ApiDetailPage() {
 
   if (error) {
     return (
-      <Layout loading={loading}>
+      <Layout>
         <Alert message={error} type="error" showIcon className="my-8" />
       </Layout>
     );
@@ -108,14 +108,16 @@ function ApiDetailPage() {
 
   if (!apiData) {
     return (
-      <Layout loading={loading}>
-        <Alert message="未找到API信息" type="warning" showIcon className="my-8" />
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <div>Loading...</div>
+        </div>
       </Layout>
     );
   }
 
   return (
-    <Layout loading={loading}>
+    <Layout>
       <div className="mb-6">
         <ProductHeader
           name={apiData.name}

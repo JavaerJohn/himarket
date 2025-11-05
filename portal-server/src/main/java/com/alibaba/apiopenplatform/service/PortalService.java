@@ -20,10 +20,10 @@
 package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.dto.params.portal.*;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
-import com.alibaba.apiopenplatform.dto.result.PortalResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.portal.PortalResult;
 import com.alibaba.apiopenplatform.dto.params.consumer.QuerySubscriptionParam;
-import com.alibaba.apiopenplatform.dto.result.SubscriptionResult;
+import com.alibaba.apiopenplatform.dto.result.product.SubscriptionResult;
 import org.springframework.data.domain.Pageable;
 
 public interface PortalService {

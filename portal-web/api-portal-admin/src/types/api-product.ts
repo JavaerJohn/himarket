@@ -34,6 +34,68 @@ export interface ApiProductMcpConfig {
   }
 }
 
+export interface ApiProductAgentConfig {
+  agentAPIConfig: {
+    agentProtocols: string[];
+    routes: Array<{
+      domains: Array<{
+        domain: string;
+        protocol: string;
+      }>;
+      description: string;
+      match: {
+        methods: string[] | null;
+        path: {
+          value: string;
+          type: string;
+        };
+        headers?: Array<{
+          name: string;
+          type: string;
+          value: string;
+        }> | null;
+        queryParams?: Array<{
+          name: string;
+          type: string;
+          value: string;
+        }> | null;
+      };
+    }>;
+  };
+}
+
+export interface ApiProductModelConfig {
+  modelAPIConfig: {
+    modelCategory?: string;
+    aiProtocols: string[];
+    routes: Array<{
+      domains: Array<{
+        domain: string;
+        protocol: string;
+      }>;
+      description: string;
+      builtin?: boolean;
+      match: {
+        methods: string[] | null;
+        path: {
+          value: string;
+          type: string;
+        };
+        headers?: Array<{
+          name: string;
+          type: string;
+          value: string;
+        }> | null;
+        queryParams?: Array<{
+          name: string;
+          type: string;
+          value: string;
+        }> | null;
+      };
+    }>;
+  };
+}
+
 // API 配置相关类型
 export interface RestAPIItem {
   apiId: string;
@@ -60,7 +122,19 @@ export interface APIGAIMCPItem {
   type?: string;
 }
 
-export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem;
+export interface AIGatewayAgentItem {
+  agentApiId: string;
+  agentApiName: string;
+  fromGatewayType: 'APIG_AI'; // Agent API 只支持 APIG_AI 网关
+}
+
+export interface AIGatewayModelItem {
+  modelApiId: string;
+  modelApiName: string;
+  fromGatewayType: 'APIG_AI'; // Model API 只支持 APIG_AI 网关
+}
+
+export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
 
 // 关联服务配置
 export interface LinkedService {
@@ -68,7 +142,7 @@ export interface LinkedService {
   gatewayId?: string;
   nacosId?: string;
   sourceType: 'GATEWAY' | 'NACOS';
-  apigRefConfig?: RestAPIItem | APIGAIMCPItem;
+  apigRefConfig?: RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
   higressRefConfig?: HigressMCPItem;
   nacosRefConfig?: NacosMCPItem;
   adpAIGatewayRefConfig?: APIGAIMCPItem;
@@ -86,6 +160,8 @@ export interface ApiProduct {
   autoApprove?: boolean;
   apiConfig?: ApiProductConfig;
   mcpConfig?: ApiProductMcpConfig;
+  agentConfig?: ApiProductAgentConfig;
+  modelConfig?: ApiProductModelConfig;
   document?: string;
   icon?: ProductIcon | null;
   categories?: ProductCategory[];

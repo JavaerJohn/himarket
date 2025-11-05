@@ -19,8 +19,8 @@
 
 package com.alibaba.apiopenplatform.service;
 
-import com.alibaba.apiopenplatform.dto.result.AdminResult;
-import com.alibaba.apiopenplatform.dto.result.AuthResult;
+import com.alibaba.apiopenplatform.dto.result.admin.AdminResult;
+import com.alibaba.apiopenplatform.dto.result.common.AuthResult;
 
 /**
  * 管理员服务接口，定义管理员相关的核心操作方法

@@ -45,6 +45,8 @@ export const SourceMap: Record<string, string> = {
 export const ProductTypeMap: Record<string, string> = {
   REST_API: 'REST API',
   MCP_SERVER: 'MCP Server',
+  AGENT_API: 'Agent API',
+  MODEL_API: 'Model API',
 };
 
 // 获取状态信息

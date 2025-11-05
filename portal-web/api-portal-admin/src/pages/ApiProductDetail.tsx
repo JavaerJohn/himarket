@@ -58,7 +58,7 @@ export default function ApiProductDetail() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null)
   const [linkedService, setLinkedService] = useState<LinkedService | null>(null)
-  const [loading, setLoading] = useState(true) // 添加 loading 状态
+  const [, setLoading] = useState(true) // 添加 loading 状态
   
   // 从URL query参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview'
@@ -165,7 +165,7 @@ export default function ApiProductDetail() {
     apiProductApi.deleteApiProduct(apiProduct.productId).then(() => {
       message.success('删除成功')
       navigate('/api-products')
-    }).catch((error) => {
+    }).catch(() => {
       // message.error(error.response?.data?.message || '删除失败')
     })
   }

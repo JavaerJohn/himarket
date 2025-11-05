@@ -28,11 +28,74 @@ export interface ApiProductMcpConfig {
   }
 }
 
+export interface ApiProductAgentConfig {
+  agentAPIConfig: {
+    agentProtocols: string[];
+    routes: Array<{
+      domains: Array<{
+        domain: string;
+        protocol: string;
+      }>;
+      description: string;
+      match: {
+        methods: string[] | null;
+        path: {
+          value: string;
+          type: string;
+        };
+        headers?: Array<{
+          name: string;
+          type: string;
+          value: string;
+        }> | null;
+        queryParams?: Array<{
+          name: string;
+          type: string;
+          value: string;
+        }> | null;
+      };
+    }>;
+  };
+}
+
+export interface ApiProductModelConfig {
+  modelAPIConfig: {
+    modelCategory?: string;
+    aiProtocols: string[];
+    routes: Array<{
+      domains: Array<{
+        domain: string;
+        protocol: string;
+      }>;
+      description: string;
+      builtin?: boolean;
+      match: {
+        methods: string[] | null;
+        path: {
+          value: string;
+          type: string;
+        };
+        headers?: Array<{
+          name: string;
+          type: string;
+          value: string;
+        }> | null;
+        queryParams?: Array<{
+          name: string;
+          type: string;
+          value: string;
+        }> | null;
+      };
+    }>;
+  };
+}
+
 export interface ApiProduct {
   productId: string;
   name: string;
   description: string;
-  type: 'REST_API' | 'MCP_SERVER';
+  type: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
+  category: string;
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
   createdAt?: string; // 兼容字段
@@ -40,6 +103,8 @@ export interface ApiProduct {
   autoApprove?: boolean;
   apiConfig?: ApiProductConfig;
   mcpConfig?: ApiProductMcpConfig;
+  agentConfig?: ApiProductAgentConfig;
+  modelConfig?: ApiProductModelConfig;
   document?: string;
   icon?: ProductIcon | null;
   categories?: ProductCategoryData[];
@@ -50,6 +115,8 @@ export interface ApiProduct {
 export const ProductType = {
   REST_API: 'REST_API',
   MCP_SERVER: 'MCP_SERVER',
+  AGENT_API: 'AGENT_API',
+  MODEL_API: 'MODEL_API',
 } as const;
 export type ProductType = typeof ProductType[keyof typeof ProductType];
 
@@ -110,8 +177,22 @@ export interface McpServerProduct extends BaseProduct {
   enabled?: boolean;
 }
 
+// Agent API 产品
+export interface AgentApiProduct extends BaseProduct {
+  type: 'AGENT_API';
+  agentConfig?: ApiProductAgentConfig;
+  enabled?: boolean;
+}
+
+// Model API 产品
+export interface ModelApiProduct extends BaseProduct {
+  type: 'MODEL_API';
+  modelConfig?: ApiProductModelConfig;
+  enabled?: boolean;
+}
+
 // 联合类型
-export type Product = RestApiProduct | McpServerProduct;
+export type Product = RestApiProduct | McpServerProduct | AgentApiProduct | ModelApiProduct;
 
 // 产品图标类型（与 Admin 端保持一致）
 export interface ProductIcon {

@@ -21,7 +21,7 @@ package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.dto.params.category.*;
 import com.alibaba.apiopenplatform.dto.params.category.CreateProductCategoryParam;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.ProductCategoryResult;
 
 import java.util.List;

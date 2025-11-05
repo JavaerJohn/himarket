@@ -19,11 +19,18 @@
 
 package com.alibaba.apiopenplatform.service.gateway;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapBuilder;
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.HigressMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
@@ -88,6 +95,16 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
+    public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size) {
+        return null;
+    }
+
+    @Override
+    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+        return null;
+    }
+
+    @Override
     public String fetchAPIConfig(Gateway gateway, Object config) {
         throw new UnsupportedOperationException("Higress gateway does not support fetching API config");
     }
@@ -111,15 +128,28 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         // mcpServer config
         MCPConfigResult.MCPServerConfig c = new MCPConfigResult.MCPServerConfig();
         c.setPath("/mcp-servers/" + higressMCPConfig.getName());
-        c.setDomains(higressMCPConfig.getDomains().stream().map(domain -> {
-                    HigressDomainConfig domainConfig = fetchDomain(gateway, domain);
-                    String protocol = (domainConfig == null || "off".equalsIgnoreCase(domainConfig.getEnableHttps())) ? "http" : "https";
-                    return DomainResult.builder()
-                            .domain(domain)
-                            .protocol(protocol)
-                            .build();
-                })
-                .collect(Collectors.toList()));
+        List<String> domains = higressMCPConfig.getDomains();
+        if (CollUtil.isEmpty(domains)) {
+            c.setDomains(Collections.singletonList(
+                    DomainResult.builder()
+                            .domain("<higress-gateway-ip>")
+                            .protocol("http")
+                            .build()
+            ));
+        } else {
+            c.setDomains(domains.stream()
+                    .map(domain -> {
+                        HigressDomainConfig domainConfig = fetchDomain(gateway, domain);
+                        String protocol = (domainConfig == null || "off".equalsIgnoreCase(domainConfig.getEnableHttps()))
+                                ? "http" : "https";
+                        return DomainResult.builder()
+                                .domain(domain)
+                                .protocol(protocol)
+                                .build();
+                    })
+                    .collect(Collectors.toList()));
+        }
+
         m.setMcpServerConfig(c);
 
         // tools
@@ -143,6 +173,16 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
                 new ParameterizedTypeReference<HigressResponse<HigressDomainConfig>>() {
                 });
         return response.getData();
+    }
+
+    @Override
+    public String fetchAgentConfig(Gateway gateway, Object conf) {
+        return "";
+    }
+
+    @Override
+    public String fetchModelConfig(Gateway gateway, Object conf) {
+        return "";
     }
 
     @Override

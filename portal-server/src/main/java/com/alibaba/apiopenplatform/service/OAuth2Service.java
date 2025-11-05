@@ -20,7 +20,7 @@
 
 package com.alibaba.apiopenplatform.service;
 
-import com.alibaba.apiopenplatform.dto.result.AuthResult;
+import com.alibaba.apiopenplatform.dto.result.common.AuthResult;
 
 /**
  * @author zh

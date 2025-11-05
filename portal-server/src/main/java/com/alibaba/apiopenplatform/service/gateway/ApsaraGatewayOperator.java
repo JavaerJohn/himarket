@@ -1,12 +1,18 @@
 package com.alibaba.apiopenplatform.service.gateway;
 
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam;
-import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.AdpMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
 import com.alibaba.apiopenplatform.entity.Gateway;
@@ -21,7 +27,6 @@ import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.aliyun.apsarastack.csb220230206.models.*;
-import com.aliyuncs.http.MethodType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -87,6 +92,16 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     }
 
     @Override
+    public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size) {
+        return null;
+    }
+
+    @Override
+    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+        return null;
+    }
+
+    @Override
     public String fetchAPIConfig(Gateway gateway, Object config) {
         throw new UnsupportedOperationException("Apsara gateway not implemented for API config export");
     }
@@ -126,7 +141,17 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             client.close();
         }
     }
-    
+
+    @Override
+    public String fetchAgentConfig(Gateway gateway, Object conf) {
+        return "";
+    }
+
+    @Override
+    public String fetchModelConfig(Gateway gateway, Object conf) {
+        return "";
+    }
+
     /**
      * 将Apsara MCP Server详情转换为MCPConfigResult格式
      */

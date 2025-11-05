@@ -3,7 +3,6 @@ import {
   Card,
   Button,
   message,
-  Input,
   Modal,
   Table,
   Badge,
@@ -16,8 +15,9 @@ import {
 import api from "../../lib/api";
 import type { Subscription } from "../../types/consumer";
 import type { ApiResponse, Product } from "../../types";
-import { getSubscriptionStatusText, getSubscriptionStatusColor } from "../../lib/statusUtils";
+import { getSubscriptionStatusText, getSubscriptionStatusColor, ProductTypeMap } from "../../lib/statusUtils";
 import { formatDateTime } from "../../lib/utils";
+import { AdvancedSearch, type SearchParam } from "../common";
 
 interface SubscriptionManagerProps {
   consumerId: string;
@@ -33,6 +33,62 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [subscriptionSearch, setSubscriptionSearch] = useState({ productName: '', status: '' as 'PENDING' | 'APPROVED' | '' });
+
+  // 搜索参数配置
+  const searchParamsList: SearchParam[] = [
+    {
+      label: '产品名称',
+      name: 'productName',
+      placeholder: '请输入产品名称进行搜索',
+      type: 'input'
+    },
+    {
+      label: '订阅状态',
+      name: 'status',
+      placeholder: '请选择订阅状态',
+      type: 'select',
+      optionList: [
+        { label: '待审批', value: 'PENDING' },
+        { label: '已通过', value: 'APPROVED' }
+      ]
+    }
+  ];
+
+  // 高级搜索处理函数
+  const handleAdvancedSearch = (searchName: string, searchValue: string) => {
+    const newSearch = { ...subscriptionSearch };
+    
+    if (searchValue) {
+      // 设置搜索值
+      if (searchName === 'productName') {
+        newSearch.productName = searchValue;
+      } else if (searchName === 'status') {
+        newSearch.status = searchValue as 'PENDING' | 'APPROVED';
+      }
+    } else {
+      // 清空特定搜索条件
+      if (searchName === 'productName') {
+        newSearch.productName = '';
+      } else if (searchName === 'status') {
+        newSearch.status = '';
+      }
+    }
+    
+    setSubscriptionSearch(newSearch);
+    
+    // 调用父组件的搜索回调
+    onSubscriptionsChange({
+      productName: newSearch.productName,
+      status: newSearch.status
+    });
+  };
+
+  // 清除所有搜索条件
+  const handleClearAllSearch = () => {
+    const emptySearch = { productName: '', status: '' as '' };
+    setSubscriptionSearch(emptySearch);
+    onSubscriptionsChange({ productName: '', status: '' });
+  };
 
   // 过滤产品：移除已订阅的产品
   const filterProducts = (allProducts: Product[]) => {
@@ -111,12 +167,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
       dataIndex: 'productType',
       key: 'productType',
       render: (productType: Product['productType']) => {
-        const typeMap = {
-          'REST_API': 'REST API',
-          'HTTP_API': 'HTTP API',
-          'MCP_SERVER': 'MCP Server'
-        };
-        return typeMap[productType as keyof typeof typeMap] || productType || '-';
+        return ProductTypeMap[productType] || productType || '-';
       }
     },
     {
@@ -154,40 +205,21 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
 
   return (
     <>
-      <Card>
-        <div className="mb-4 flex justify-between items-center">
-          <div className="flex space-x-4">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={openProductModal}
-            >
-              订阅
-            </Button>
-            <Input.Search
-              placeholder="请输入API名称进行搜索"
-              style={{ width: 300 }}
-              onSearch={(value) => {
-                const newSearch = { ...subscriptionSearch, productName: value };
-                setSubscriptionSearch(newSearch);
-                onSubscriptionsChange(newSearch);
-              }}
-            />
-            <Select
-              placeholder="订阅状态"
-              style={{ width: 120 }}
-              allowClear
-              value={subscriptionSearch.status || undefined}
-              onChange={(value) => {
-                const newSearch = { ...subscriptionSearch, status: value as 'PENDING' | 'APPROVED' | '' };
-                setSubscriptionSearch(newSearch);
-                onSubscriptionsChange(newSearch);
-              }}
-            >
-              <Select.Option value="PENDING">待审批</Select.Option>
-              <Select.Option value="APPROVED">已通过</Select.Option>
-            </Select>
-          </div>
+      <Card style={{ borderRadius: '12px' }}>
+        {/* 搜索框和订阅按钮在同一行 */}
+        <div className="mb-4 flex justify-between items-center gap-4">
+          <AdvancedSearch
+            searchParamsList={searchParamsList}
+            onSearch={handleAdvancedSearch}
+            onClear={handleClearAllSearch}
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={openProductModal}
+          >
+            订阅
+          </Button>
         </div>
         <Table
           columns={subscriptionColumns}

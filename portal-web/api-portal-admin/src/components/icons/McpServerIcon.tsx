@@ -1,6 +1,7 @@
 import React from 'react';
 import Icon from '@ant-design/icons';
 import type { CustomIconComponentProps } from '@ant-design/icons/lib/components/Icon';
+import { ToolOutlined } from '@ant-design/icons';
 
 // 基于真实的 MCP.svg 文件的图标组件
 const McpSvg = () => (
@@ -18,8 +19,16 @@ const McpSvg = () => (
   </svg>
 );
 
-const McpServerIcon: React.FC<Partial<CustomIconComponentProps>> = (props) => (
-  <Icon component={McpSvg} {...props} />
-);
+// Icon主题配置
+const USE_ANTD_ICON = false;
+
+const McpServerIcon: React.FC<Partial<CustomIconComponentProps>> = (props) => {
+  if (USE_ANTD_ICON) {
+    return <ToolOutlined {...props} />;
+  }
+  
+  // 使用原始自定义SVG Icon
+  return <Icon component={McpSvg} {...props} />;
+};
 
 export default McpServerIcon;

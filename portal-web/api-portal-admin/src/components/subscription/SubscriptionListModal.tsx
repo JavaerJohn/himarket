@@ -2,7 +2,7 @@ import { Modal, Table, Badge, message, Button, Popconfirm } from 'antd';
 import { useEffect, useState } from 'react';
 import { Subscription } from '@/types/subscription';
 import { portalApi } from '@/lib/api';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, ProductTypeMap } from '@/lib/utils';
 
 interface SubscriptionListModalProps {
   visible: boolean;
@@ -46,7 +46,7 @@ export function SubscriptionListModal({
         ...prev,
         total: res.data.totalElements || 0
       }));
-    }).catch((err) => {
+    }).catch(() => {
       message.error('获取订阅列表失败');
     }).finally(() => {
       setLoading(false);
@@ -106,8 +106,10 @@ export function SubscriptionListModal({
       key: 'productType',
       render: (productType: string) => (
         <Badge 
-          color={productType === 'REST_API' ? 'blue' : 'purple'} 
-          text={productType === 'REST_API' ? 'REST API' : 'MCP Server'} 
+          color={productType === 'REST_API' ? 'blue' : 
+                 productType === 'AGENT_API' ? 'orange' : 
+                 productType === 'MODEL_API' ? 'yellow' : 'purple'} 
+          text={ProductTypeMap[productType] || productType} 
         />
       )
     },

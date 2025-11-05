@@ -19,12 +19,11 @@
 
 package com.alibaba.apiopenplatform.service.impl;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.constant.Resources;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.TokenUtil;
-import com.alibaba.apiopenplatform.dto.result.AdminResult;
-import com.alibaba.apiopenplatform.dto.result.AuthResult;
+import com.alibaba.apiopenplatform.dto.result.admin.AdminResult;
+import com.alibaba.apiopenplatform.dto.result.common.AuthResult;
 import com.alibaba.apiopenplatform.entity.Administrator;
 import com.alibaba.apiopenplatform.repository.AdministratorRepository;
 import com.alibaba.apiopenplatform.service.AdministratorService;

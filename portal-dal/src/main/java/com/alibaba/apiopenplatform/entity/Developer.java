@@ -35,8 +35,8 @@ import lombok.Builder;
 @Builder
 @Entity
 @Table(name = "developer", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"developerId"}),
-        @UniqueConstraint(columnNames = {"portalId", "username"})
+        @UniqueConstraint(columnNames = {"developerId"}, name = "uk_developer_id"),
+        @UniqueConstraint(columnNames = {"portalId", "username"}, name = "uk_portal_username")
 })
 public class Developer extends BaseEntity {
 
@@ -50,7 +50,7 @@ public class Developer extends BaseEntity {
     @Column(length = 64)
     private String username;
 
-    @Column()
+    @Column(length = 255)
     private String passwordHash;
 
     @Column(length = 128)

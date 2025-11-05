@@ -20,9 +20,8 @@
 
 package com.alibaba.apiopenplatform.service;
 
-import com.alibaba.apiopenplatform.dto.result.AuthResult;
-import com.alibaba.apiopenplatform.dto.result.IdpResult;
-import com.alibaba.apiopenplatform.support.portal.OidcConfig;
+import com.alibaba.apiopenplatform.dto.result.common.AuthResult;
+import com.alibaba.apiopenplatform.dto.result.idp.IdpResult;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;

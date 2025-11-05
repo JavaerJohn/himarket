@@ -130,7 +130,9 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
             <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
              <span className="text-xs text-gray-600">类型:</span>
               <span className="col-span-2 text-xs text-gray-900">
-                {apiProduct.type === 'REST_API' ? 'REST API' : 'MCP Server'}
+                {apiProduct.type === 'REST_API' ? 'REST API' : 
+                 apiProduct.type === 'AGENT_API' ? 'Agent API' : 
+                 apiProduct.type === 'MODEL_API' ? 'Model API' : 'MCP Server'}
               </span>
              <span className="text-xs text-gray-600">状态:</span>
               <div className="col-span-2 flex items-center">

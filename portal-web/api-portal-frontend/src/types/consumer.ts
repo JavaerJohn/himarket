@@ -48,7 +48,7 @@ export interface Subscription {
   createAt: string;
   updatedAt: string;
   productName: string;
-  productType: 'REST_API' | 'MCP_SERVER';
+  productType: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
   consumerName?: string;
   product?: Product;
 }

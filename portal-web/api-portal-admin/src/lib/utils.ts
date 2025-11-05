@@ -37,12 +37,21 @@ export const getServiceName = (linkedServiceParam: any) => {
     if ('mcpServerName' in linkedServiceParam.apigRefConfig && linkedServiceParam.apigRefConfig.mcpServerName) {
       return linkedServiceParam.apigRefConfig.mcpServerName
     }
+    if ('agentApiName' in linkedServiceParam.apigRefConfig && linkedServiceParam.apigRefConfig.agentApiName) {
+      return linkedServiceParam.apigRefConfig.agentApiName
+    }
+    if ('modelApiName' in linkedServiceParam.apigRefConfig && linkedServiceParam.apigRefConfig.modelApiName) {
+      return linkedServiceParam.apigRefConfig.modelApiName
+    }
   }
   if (linkedServiceParam?.higressRefConfig) {
     return linkedServiceParam.higressRefConfig.mcpServerName
   }
   if (linkedServiceParam?.adpAIGatewayRefConfig) {
-    return linkedServiceParam.adpAIGatewayRefConfig.mcpServerName
+    // ADP_AI_GATEWAY 只支持 MCP Server，不支持 Agent API
+    if ('mcpServerName' in linkedServiceParam.adpAIGatewayRefConfig && linkedServiceParam.adpAIGatewayRefConfig.mcpServerName) {
+      return linkedServiceParam.adpAIGatewayRefConfig.mcpServerName
+    }
   }
   return '未知服务'
 }
@@ -99,6 +108,8 @@ export const formatDate = (dateString: string | Date): string => {
 export const ProductTypeMap: Record<string, string> = {
   REST_API: 'REST API',
   MCP_SERVER: 'MCP Server',
+  AGENT_API: 'Agent API',
+  MODEL_API: 'Model API',
 };
 
 // OpenAPI 规范解析相关类型和函数

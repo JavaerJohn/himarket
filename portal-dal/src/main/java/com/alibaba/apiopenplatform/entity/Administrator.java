@@ -20,24 +20,21 @@
 package com.alibaba.apiopenplatform.entity;
 
 import javax.persistence.*;
-import java.util.Date;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
-/**
- * 管理员实体类，映射管理员账号信息
- *
- */
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
 @Table(name = "administrator", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"adminId"}),
-        @UniqueConstraint(columnNames = {"username"})
+        @UniqueConstraint(columnNames = {"adminId"}, name = "uk_admin_id"),
+        @UniqueConstraint(columnNames = {"username"}, name = "uk_username")
 })
 public class Administrator extends BaseEntity {
     @Id

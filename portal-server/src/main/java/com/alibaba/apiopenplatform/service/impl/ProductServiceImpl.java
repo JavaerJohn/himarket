@@ -40,28 +40,21 @@ import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
-import com.alibaba.apiopenplatform.dto.params.product.CreateProductParam;
-import com.alibaba.apiopenplatform.dto.params.product.CreateProductRefParam;
-import com.alibaba.apiopenplatform.dto.params.product.QueryProductParam;
-import com.alibaba.apiopenplatform.dto.params.product.QueryProductSubscriptionParam;
-import com.alibaba.apiopenplatform.dto.params.product.UpdateProductParam;
-import com.alibaba.apiopenplatform.dto.result.*;
-import com.alibaba.apiopenplatform.entity.Consumer;
-import com.alibaba.apiopenplatform.entity.Product;
-import com.alibaba.apiopenplatform.entity.ProductCategoryRelation;
-import com.alibaba.apiopenplatform.entity.ProductPublication;
-import com.alibaba.apiopenplatform.entity.ProductRef;
-import com.alibaba.apiopenplatform.entity.ProductSubscription;
-import com.alibaba.apiopenplatform.repository.ConsumerRepository;
-import com.alibaba.apiopenplatform.repository.ProductPublicationRepository;
-import com.alibaba.apiopenplatform.repository.ProductRefRepository;
-import com.alibaba.apiopenplatform.repository.ProductRepository;
-import com.alibaba.apiopenplatform.repository.SubscriptionRepository;
-import com.alibaba.apiopenplatform.service.GatewayService;
-import com.alibaba.apiopenplatform.service.NacosService;
-import com.alibaba.apiopenplatform.service.PortalService;
-import com.alibaba.apiopenplatform.service.ProductCategoryService;
-import com.alibaba.apiopenplatform.service.ProductService;
+import com.alibaba.apiopenplatform.dto.params.product.*;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentConfigResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIConfigResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
+import com.alibaba.apiopenplatform.dto.result.portal.PortalResult;
+import com.alibaba.apiopenplatform.dto.result.product.ProductPublicationResult;
+import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
+import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
+import com.alibaba.apiopenplatform.dto.result.product.SubscriptionResult;
+import com.alibaba.apiopenplatform.entity.*;
+import com.alibaba.apiopenplatform.repository.*;
+import com.alibaba.apiopenplatform.service.*;
 import com.alibaba.apiopenplatform.support.enums.ProductStatus;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
 import com.alibaba.apiopenplatform.support.enums.SourceType;
@@ -234,9 +227,12 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void unpublishProduct(String productId, String portalId) {
         portalService.existsPortal(portalId);
+        Product product = findProduct(productId);
+        product.setStatus(ProductStatus.READY);
 
         publicationRepository.findByPortalIdAndProductId(portalId, productId)
                 .ifPresent(publicationRepository::delete);
+        productRepository.save(product);
     }
 
     @Override
@@ -250,14 +246,12 @@ public class ProductServiceImpl implements ProductService {
         clearProductCategoryRelations(productId);
 
         productRepository.delete(product);
+        productRefRepository.deleteByProductId(productId);
 
         // 异步清理Product资源
         eventPublisher.publishEvent(new ProductDeletingEvent(productId));
     }
 
-    /**
-     * 查找产品，如果不存在则抛出异常
-     */
     private Product findProduct(String productId) {
         return productRepository.findByProductId(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
@@ -309,7 +303,8 @@ public class ProductServiceImpl implements ProductService {
 
         if (sourceType.isGateway()) {
             GatewayResult gateway = gatewayService.getGateway(productRef.getGatewayId());
-            // 根据网关类型选择对应的配置对象
+
+            // Determine specific configuration type
             Object config;
             if (gateway.getGatewayType().isHigress()) {
                 config = productRef.getHigressRefConfig();
@@ -320,21 +315,32 @@ public class ProductServiceImpl implements ProductService {
             } else {
                 config = productRef.getApigRefConfig();
             }
-            if (product.getType() == ProductType.REST_API) {
-                String apiConfig = gatewayService.fetchAPIConfig(gateway.getGatewayId(), config);
-                productRef.setApiConfig(apiConfig);
-            } else {
-                String mcpConfig = gatewayService.fetchMcpConfig(gateway.getGatewayId(), config);
-                productRef.setMcpConfig(mcpConfig);
+
+            // Handle different configurations based on product type
+            switch (product.getType()) {
+                case REST_API:
+                    productRef.setApiConfig(gatewayService.fetchAPIConfig(gateway.getGatewayId(), config));
+                    break;
+                case MCP_SERVER:
+                    productRef.setMcpConfig(gatewayService.fetchMcpConfig(gateway.getGatewayId(), config));
+                    break;
+                case AGENT_API:
+                    productRef.setAgentConfig(gatewayService.fetchAgentConfig(gateway.getGatewayId(), config));
+                    break;
+                case MODEL_API:
+                    productRef.setModelConfig(gatewayService.fetchModelConfig(gateway.getGatewayId(), config));
+                    break;
             }
         } else if (sourceType.isNacos()) {
-            // 从Nacos获取MCP Server配置
+            // Handle Nacos configuration
             NacosRefConfig nacosRefConfig = productRef.getNacosRefConfig();
             if (nacosRefConfig != null) {
                 String mcpConfig = nacosService.fetchMcpConfig(productRef.getNacosId(), nacosRefConfig);
                 productRef.setMcpConfig(mcpConfig);
             }
         }
+
+        // Update status
         product.setStatus(ProductStatus.READY);
         productRef.setEnabled(true);
     }
@@ -350,11 +356,20 @@ public class ProductServiceImpl implements ProductService {
                         product.setApiConfig(JSONUtil.toBean(productRef.getApiConfig(), APIConfigResult.class));
                     }
 
-                    // API Config
+                    // MCP Config
                     if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
                         product.setMcpConfig(JSONUtil.toBean(productRef.getMcpConfig(), MCPConfigResult.class));
                     }
-                    product.setStatus(ProductStatus.READY);
+
+                    // Agent Config
+                    if (StrUtil.isNotBlank(productRef.getAgentConfig())) {
+                        product.setAgentConfig(JSONUtil.toBean(productRef.getAgentConfig(), AgentConfigResult.class));
+                    }
+
+                    // Model Config
+                    if (StrUtil.isNotBlank(productRef.getModelConfig())) {
+                        product.setModelConfig(JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class));
+                    }
                 });
 
         if (publicationRepository.existsByProductId(product.getProductId())) {

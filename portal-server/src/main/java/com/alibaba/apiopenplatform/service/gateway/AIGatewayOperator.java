@@ -20,27 +20,30 @@
 package com.alibaba.apiopenplatform.service.gateway;
 
 import cn.hutool.core.codec.Base64;
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.APIGMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentConfigResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
-import com.alibaba.apiopenplatform.service.gateway.client.PopGatewayClient;
 import com.alibaba.apiopenplatform.service.gateway.client.SLSClient;
 import com.alibaba.apiopenplatform.support.consumer.APIGAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.enums.APIGAPIType;
+import com.alibaba.apiopenplatform.support.enums.APIGResourceType;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
-import com.aliyuncs.http.MethodType;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import com.aliyun.sdk.service.sls20201230.models.*;
@@ -57,7 +60,8 @@ import java.util.stream.Stream;
 @Slf4j
 public class AIGatewayOperator extends APIGOperator {
 
-    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers2(Gateway gateway, int page, int size) {
+    @Override
+    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
         APIGClient client = getClient(gateway);
 
         CompletableFuture<ListMcpServersResponse> response = client.execute(c ->
@@ -79,7 +83,7 @@ public class AIGatewayOperator extends APIGOperator {
                             APIGMCPServerResult mcpServer = new APIGMCPServerResult();
                             mcpServer.setMcpServerId(item.getMcpServerId());
                             mcpServer.setMcpServerName(item.getName());
-//                            mcpServer.setApiId(item.getApiId());
+                            mcpServer.setApiId(item.getApiId());
                             mcpServer.setMcpRouteId(item.getRouteId());
                             return mcpServer;
                         })
@@ -89,34 +93,34 @@ public class AIGatewayOperator extends APIGOperator {
         return PageResult.of(mcpServers, page, size, result.getBody().getData().getTotalSize());
     }
 
-    @Override
-    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
-        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
-
-        Map<String, String> queryParams = MapUtil.<String, String>builder()
-                .put("gatewayId", gateway.getGatewayId())
-                .put("pageNumber", String.valueOf(page))
-                .put("pageSize", String.valueOf(size))
-                .build();
-
-        return client.execute("/v1/mcp-servers", MethodType.GET, queryParams, data -> {
-            List<APIGMCPServerResult> mcpServers = Optional.ofNullable(data.getJSONArray("items"))
-                    .map(items -> items.stream()
-                            .map(JSONObject.class::cast)
-                            .map(json -> {
-                                APIGMCPServerResult result = new APIGMCPServerResult();
-                                result.setMcpServerName(json.getStr("name"));
-                                result.setMcpServerId(json.getStr("mcpServerId"));
-                                result.setMcpRouteId(json.getStr("routeId"));
-                                result.setApiId(json.getStr("apiId"));
-                                return result;
-                            })
-                            .collect(Collectors.toList()))
-                    .orElse(new ArrayList<>());
-
-            return PageResult.of(mcpServers, page, size, data.getInt("totalSize"));
-        });
-    }
+//    @Override
+//    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
+//        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
+//
+//        Map<String, String> queryParams = MapUtil.<String, String>builder()
+//                .put("gatewayId", gateway.getGatewayId())
+//                .put("pageNumber", String.valueOf(page))
+//                .put("pageSize", String.valueOf(size))
+//                .build();
+//
+//        return client.execute("/v1/mcp-servers", MethodType.GET, queryParams, data -> {
+//            List<APIGMCPServerResult> mcpServers = Optional.ofNullable(data.getJSONArray("items"))
+//                    .map(items -> items.stream()
+//                            .map(JSONObject.class::cast)
+//                            .map(json -> {
+//                                APIGMCPServerResult result = new APIGMCPServerResult();
+//                                result.setMcpServerName(json.getStr("name"));
+//                                result.setMcpServerId(json.getStr("mcpServerId"));
+//                                result.setMcpRouteId(json.getStr("routeId"));
+//                                result.setApiId(json.getStr("apiId"));
+//                                return result;
+//                            })
+//                            .collect(Collectors.toList()))
+//                    .orElse(new ArrayList<>());
+//
+//            return PageResult.of(mcpServers, page, size, data.getInt("totalSize"));
+//        });
+//    }
 
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers_V1(Gateway gateway, int page, int size) {
         PageResult<APIResult> apiPage = fetchAPIs(gateway, APIGAPIType.MCP, 0, 1);
@@ -316,6 +320,82 @@ public class AIGatewayOperator extends APIGOperator {
     }
 
     @Override
+    public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size) {
+        PageResult<APIResult> apiResult = fetchAPIs(gateway, APIGAPIType.AGENT, page, size);
+
+        return new PageResult<AgentAPIResult>().mapFrom(apiResult, api ->
+                AgentAPIResult.builder()
+                        .agentApiId(api.getApiId())
+                        .agentApiName(api.getApiName())
+                        .build()
+        );
+    }
+
+    @Override
+    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+        PageResult<APIResult> apiResult = fetchAPIs(gateway, APIGAPIType.MODEL, page, size);
+
+        return new PageResult<ModelAPIResult>().mapFrom(apiResult, api ->
+                ModelAPIResult.builder()
+                        .modelApiId(api.getApiId())
+                        .modelApiName(api.getApiName())
+                        .build()
+        );
+    }
+
+    @Override
+    public String fetchAgentConfig(Gateway gateway, Object conf) {
+        APIGRefConfig config = (APIGRefConfig) conf;
+        AgentConfigResult result = new AgentConfigResult();
+
+        HttpApiApiInfo apiInfo = fetchAPI(gateway, config.getAgentApiId());
+        List<DomainResult> apiDomains = extractAPIDomains(apiInfo);
+
+        // Agent API consists of HTTP routes
+        PageResult<HttpRoute> httpRoutes = fetchHttpRoutes(gateway, config.getAgentApiId(), 1, 500);
+
+        List<HttpRouteResult> routeResults = httpRoutes.getContent()
+                .stream()
+                .map(httpRoute -> new HttpRouteResult().convertFrom(httpRoute, apiDomains))
+                .collect(Collectors.toList());
+
+        AgentConfigResult.AgentAPIConfig agentAPIConfig = AgentConfigResult.AgentAPIConfig.builder()
+                // TODO Retrieve agent protocol from route configuration
+                .agentProtocols(Collections.singletonList("DashScope"))
+                .routes(routeResults)
+                .build();
+        result.setAgentAPIConfig(agentAPIConfig);
+
+        return JSONUtil.toJsonStr(result);
+    }
+
+    @Override
+    public String fetchModelConfig(Gateway gateway, Object conf) {
+        APIGRefConfig config = (APIGRefConfig) conf;
+        ModelConfigResult result = new ModelConfigResult();
+
+        // Fetch http routes
+        HttpApiApiInfo apiInfo = fetchAPI(gateway, config.getModelApiId());
+        PageResult<HttpRoute> httpRoutes = fetchHttpRoutes(gateway, config.getModelApiId(), 1, 500);
+
+        List<DomainResult> apiDomains = extractAPIDomains(apiInfo);
+        // Convert route results
+        List<HttpRouteResult> routeResults = httpRoutes.getContent()
+                .stream()
+                .map(httpRoute -> new HttpRouteResult().convertFrom(httpRoute, apiDomains))
+                .collect(Collectors.toList());
+
+        ModelConfigResult.ModelAPIConfig apiConfig = ModelConfigResult.ModelAPIConfig.builder()
+                .aiProtocols(apiInfo.getAiProtocols())
+                .modelCategory(apiInfo.getModelCategory())
+                .routes(routeResults)
+                .build();
+        result.setModelAPIConfig(apiConfig);
+
+        return JSONUtil.toJsonStr(result);
+    }
+
+    @Override
     public GatewayType getGatewayType() {
         return GatewayType.APIG_AI;
     }
@@ -419,8 +499,19 @@ public class AIGatewayOperator extends APIGOperator {
         APIGClient client = getClient(gateway);
 
         APIGRefConfig config = (APIGRefConfig) refConfig;
-        // MCP Server 授权
-        String mcpRouteId = config.getMcpRouteId();
+
+        APIGResourceType resourceType;
+        String resourceId;
+        if (StrUtil.isNotBlank(config.getMcpRouteId())) {
+            resourceType = APIGResourceType.MCP;
+            resourceId = config.getMcpRouteId();
+        } else if (StrUtil.isNotBlank(config.getAgentApiId())) {
+            resourceType = APIGResourceType.Agent;
+            resourceId = config.getAgentApiId();
+        } else {
+            resourceType = APIGResourceType.LLM;
+            resourceId = config.getModelApiId();
+        }
 
         try {
             // 确认Gateway的EnvId
@@ -429,9 +520,9 @@ public class AIGatewayOperator extends APIGOperator {
             CreateConsumerAuthorizationRulesRequest.AuthorizationRules rule = CreateConsumerAuthorizationRulesRequest.AuthorizationRules.builder()
                     .consumerId(consumerId)
                     .expireMode("LongTerm")
-                    .resourceType("MCP")
+                    .resourceType(resourceType.getType())
                     .resourceIdentifier(CreateConsumerAuthorizationRulesRequest.ResourceIdentifier.builder()
-                            .resourceId(mcpRouteId)
+                            .resourceId(resourceId)
                             .environmentId(envId).build())
                     .build();
 
@@ -458,21 +549,21 @@ public class AIGatewayOperator extends APIGOperator {
             Throwable cause = e.getCause();
             if (cause instanceof PopClientException
                     && "Conflict.ConsumerAuthorizationForbidden".equals(((PopClientException) cause).getErrCode())) {
-                return getConsumerAuthorization(gateway, consumerId, mcpRouteId);
+                return getConsumerAuthorization(gateway, consumerId, resourceType.getType(), resourceId);
             }
-            log.error("Error authorizing consumer {} to mcp server {} in AI gateway {}", consumerId, mcpRouteId, gateway.getGatewayId(), e);
-            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Failed to authorize consumer to mcp server in AI gateway: " + e.getMessage());
+            log.error("Error authorizing consumer {} to {}:{} in AI gateway {}", consumerId, resourceType, resourceId, gateway.getGatewayId(), e);
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, StrUtil.format("Failed to authorize consumer to {} in AI gateway: ", resourceType) + e.getMessage());
         }
     }
 
-    public ConsumerAuthConfig getConsumerAuthorization(Gateway gateway, String consumerId, String resourceId) {
+    public ConsumerAuthConfig getConsumerAuthorization(Gateway gateway, String consumerId, String resourceType, String resourceId) {
         APIGClient client = getClient(gateway);
 
         CompletableFuture<QueryConsumerAuthorizationRulesResponse> f = client.execute(c -> {
             QueryConsumerAuthorizationRulesRequest request = QueryConsumerAuthorizationRulesRequest.builder()
                     .consumerId(consumerId)
                     .resourceId(resourceId)
-                    .resourceType("MCP")
+                    .resourceType(resourceType)
                     .build();
 
             return c.queryConsumerAuthorizationRules(request);

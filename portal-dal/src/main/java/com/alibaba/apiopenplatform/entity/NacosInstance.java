@@ -24,9 +24,6 @@ import lombok.EqualsAndHashCode;
 
 import javax.persistence.*;
 
-/**
- * Nacos实例实体
- */
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "nacos_instance",

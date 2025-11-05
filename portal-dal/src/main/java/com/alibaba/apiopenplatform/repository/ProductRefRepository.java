@@ -39,4 +39,6 @@ public interface ProductRefRepository extends JpaRepository<ProductRef, Long>, J
     Optional<ProductRef> findFirstByProductId(String productId);
 
     boolean existsByGatewayId(String gatewayId);
+
+    void deleteByProductId(String productId);
 }

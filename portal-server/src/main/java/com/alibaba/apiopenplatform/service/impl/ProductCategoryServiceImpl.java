@@ -30,7 +30,7 @@ import com.alibaba.apiopenplatform.dto.params.category.QueryProductCategoryParam
 import com.alibaba.apiopenplatform.dto.params.category.UpdateProductCategoryParam;
 import com.alibaba.apiopenplatform.dto.params.category.CreateProductCategoryParam;
 import com.alibaba.apiopenplatform.dto.result.ProductCategoryResult;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.entity.Product;
 import com.alibaba.apiopenplatform.entity.ProductCategory;
 import com.alibaba.apiopenplatform.entity.ProductCategoryRelation;

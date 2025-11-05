@@ -7,8 +7,7 @@ import { Layout } from "../components/Layout";
 import api, { categoryApi } from "../lib/api";
 import { ProductStatus } from "../types";
 import type { Product, ApiResponse, PaginatedResponse, ProductIcon, ProductCategoryData } from "../types";
-// import { getCategoryText, getCategoryColor } from "../lib/statusUtils";
-const { Search } = Input;
+// import { getCategoryText, getCategoryColor } from "../lib/statusUtils"
 
 interface McpServer {
   key: string;
@@ -159,20 +158,23 @@ function McpPage() {
 
       {/* Search Section */}
       <div className="flex justify-center mb-8">
-        <div className="relative w-full max-w-2xl">
-          <Search
-            placeholder="请输入内容"
-            size="large"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="rounded-lg shadow-lg"
-          />
+        <div className="relative w-full max-w-lg">
+          <div className="border border-gray-300 rounded-md overflow-hidden hover:border-blue-500 focus-within:border-blue-500 focus-within:shadow-sm" style={{ width: '100%', maxWidth: '500px' }}>
+            <Input.Search
+              placeholder="请输入内容"
+              size="large"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="border-0 rounded-none"
+              variant="borderless"
+            />
+          </div>
         </div>
       </div>
 
       {/* Category Tags Section */}
-      <div className="mb-6">
-        <div className="py-3 px-4 border border-gray-200 rounded-lg bg-gray-50">
+      <div className="mb-2">
+        <div className="py-3 px-4 border border-gray-200 rounded-lg bg-[#f4f4f6]">
           <div className="flex flex-wrap items-center gap-4">
             <div
               className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${
@@ -271,7 +273,7 @@ function McpPage() {
                     <Title level={5} className="mb-0 truncate">
                       {server.name}
                     </Title>
-                    <Tag className="text-xs text-green-700 border-0 bg-transparent px-0">
+                    <Tag className="text-xs text-gray-500 border-0 bg-transparent px-0">
                       {server.mcpConfig?.mcpServerConfig?.transportMode || 'remote'}
                     </Tag>
                   </div>
@@ -294,9 +296,9 @@ function McpPage() {
       )}
 
       {/* Empty State */}
-      {filteredMcpServers.length === 0 && (
+      {!loading && filteredMcpServers.length === 0 && (
         <div className="text-center py-8">
-          <div className="text-gray-500">暂无MCP服务器</div>
+          <div className="text-gray-500">暂无MCP服务</div>
         </div>
       )}
     </Layout>

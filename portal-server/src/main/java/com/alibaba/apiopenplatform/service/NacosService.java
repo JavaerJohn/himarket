@@ -22,13 +22,13 @@ package com.alibaba.apiopenplatform.service;
 import com.alibaba.apiopenplatform.dto.params.nacos.CreateNacosParam;
 import com.alibaba.apiopenplatform.dto.params.nacos.QueryNacosParam;
 import com.alibaba.apiopenplatform.dto.params.nacos.UpdateNacosParam;
-import com.alibaba.apiopenplatform.dto.result.MseNacosResult;
-import com.alibaba.apiopenplatform.dto.result.NacosMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.NacosResult;
-import com.alibaba.apiopenplatform.dto.result.PageResult;
+import com.alibaba.apiopenplatform.dto.result.nacos.MseNacosResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.NacosMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.nacos.NacosResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.support.product.NacosRefConfig;
 import org.springframework.data.domain.Pageable;
-import com.alibaba.apiopenplatform.dto.result.NacosNamespaceResult;
+import com.alibaba.apiopenplatform.dto.result.nacos.NacosNamespaceResult;
 
 /**
  * Nacos服务接口，定义Nacos实例管理和MCP服务器配置相关操作

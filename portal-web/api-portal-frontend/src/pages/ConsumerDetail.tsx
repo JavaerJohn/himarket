@@ -4,7 +4,7 @@ import { Layout } from "../components/Layout";
 import { Alert, Tabs } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import api from "../lib/api";
-import { ConsumerBasicInfo, CredentialManager, SubscriptionManager } from "../components/consumer";
+import { ConsumerBasicInfo, AuthConfig, SubscriptionManager } from "../components/consumer";
 import type { Consumer, Subscription } from "../types/consumer";
 import type { ApiResponse } from "../types";
 
@@ -97,9 +97,7 @@ function ConsumerDetailPage() {
             <Tabs.TabPane tab="基本信息" key="basic">
               <ConsumerBasicInfo consumer={consumer} />
               <div className="mt-6">
-                <CredentialManager 
-                  consumerId={consumerId!}
-                />
+                <AuthConfig consumerId={consumerId!} />
               </div>
             </Tabs.TabPane>
 
@@ -107,12 +105,24 @@ function ConsumerDetailPage() {
               <SubscriptionManager 
                 consumerId={consumerId!}
                 subscriptions={subscriptions}
-                onSubscriptionsChange={async () => {
+                onSubscriptionsChange={async (searchParams) => {
                   // 重新获取订阅列表
                   if (consumerId) {
                     setSubscriptionsLoading(true);
                     try {
-                      const response: ApiResponse<{content: Subscription[], totalElements: number}> = await api.get(`/consumers/${consumerId}/subscriptions`);
+                      // 构建查询参数
+                      const params = new URLSearchParams();
+                      if (searchParams?.productName) {
+                        params.append('productName', searchParams.productName);
+                      }
+                      if (searchParams?.status) {
+                        params.append('status', searchParams.status);
+                      }
+                      
+                      const queryString = params.toString();
+                      const url = `/consumers/${consumerId}/subscriptions${queryString ? `?${queryString}` : ''}`;
+                      
+                      const response: ApiResponse<{content: Subscription[], totalElements: number}> = await api.get(url);
                       if (response?.code === "SUCCESS" && response?.data) {
                         // 从分页数据中提取实际的订阅数组
                         const subscriptionsData = response.data.content || [];

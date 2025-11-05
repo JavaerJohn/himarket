@@ -24,8 +24,15 @@ import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.*;
-import com.alibaba.apiopenplatform.dto.result.AdpGatewayInstanceResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.gateway.AdpGatewayInstanceResult;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.AdpMcpServerListResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
 import com.alibaba.apiopenplatform.entity.Gateway;
@@ -36,7 +43,7 @@ import com.alibaba.apiopenplatform.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.apiopenplatform.service.gateway.client.AdpAIGatewayClient;
 import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
-import com.alibaba.apiopenplatform.dto.result.MCPConfigResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
 import cn.hutool.json.JSONUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import lombok.Data;
@@ -115,6 +122,16 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     }
 
     @Override
+    public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size) {
+        return null;
+    }
+
+    @Override
+    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+        return null;
+    }
+
+    @Override
     public String fetchAPIConfig(Gateway gateway, Object config) {
         return "";
     }
@@ -163,6 +180,16 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         } finally {
             client.close();
         }
+    }
+
+    @Override
+    public String fetchAgentConfig(Gateway gateway, Object conf) {
+        return "";
+    }
+
+    @Override
+    public String fetchModelConfig(Gateway gateway, Object conf) {
+        return "";
     }
 
     /**
@@ -693,32 +720,32 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                         consumerId, adpAIAuthConfig.getMcpServerName());
                     return;
                 }
-                
+
                 // 获取错误信息
                 String message = responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
-                
+
                 // 如果是资源不存在（已被删除），只记录警告，不抛异常
-                if (message != null && (message.contains("not found") || message.contains("不存在") 
+                if (message != null && (message.contains("not found") || message.contains("不存在")
                         || message.contains("NotFound") || code == 404)) {
                     log.warn("Consumer authorization already removed or not found: consumerId={}, mcpServer={}, message={}",
                         consumerId, adpAIAuthConfig.getMcpServerName(), message);
                     return;
                 }
-                
+
                 // 其他错误抛出异常
                 String errorMsg = "Failed to revoke consumer authorization from MCP server: " + message;
                 log.error(errorMsg);
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, errorMsg);
             }
-            
-            throw new BusinessException(ErrorCode.GATEWAY_ERROR, 
+
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR,
                 "Failed to revoke consumer authorization, HTTP status: " + response.getStatusCode());
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             log.error("Error revoking consumer {} authorization from MCP server {}", 
                 consumerId, adpAIAuthConfig.getMcpServerName(), e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, 
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
                 "Error revoking consumer authorization: " + e.getMessage());
         } finally {
             client.close();

@@ -24,8 +24,14 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
-import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIConfigResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
 import com.alibaba.apiopenplatform.support.consumer.APIGAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
@@ -78,6 +84,16 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
+    public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size) {
+        throw new UnsupportedOperationException("APIG does not support Agent APIs");
+    }
+
+    @Override
+    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+        throw new UnsupportedOperationException("APIG does not support Model APIs");
+    }
+
+    @Override
     public String fetchAPIConfig(Gateway gateway, Object config) {
         APIGClient client = getClient(gateway);
 
@@ -118,6 +134,16 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     @Override
     public String fetchMcpConfig(Gateway gateway, Object conf) {
         throw new UnsupportedOperationException("APIG does not support MCP Servers");
+    }
+
+    @Override
+    public String fetchAgentConfig(Gateway gateway, Object conf) {
+        throw new UnsupportedOperationException("APIG does not support Agent APIs");
+    }
+
+    @Override
+    public String fetchModelConfig(Gateway gateway, Object conf) {
+        throw new UnsupportedOperationException("APIG does not support Model APIs");
     }
 
     @Override

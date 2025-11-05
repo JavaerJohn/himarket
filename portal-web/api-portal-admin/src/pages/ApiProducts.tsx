@@ -28,17 +28,24 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
           const src = icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`;
           return <img src={src} alt="icon" style={{ borderRadius: '8px', minHeight: '40px', width: '40px', height: '40px', objectFit: 'cover' }} />
         default:
-          return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : 
-                 type === "AGENT_API" ? <RobotOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
-                 type === "MODEL_API" ? <BulbOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
-                 <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+          return getDefaultIcon(type)
       }
     } else {
-      return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : 
-             type === "AGENT_API" ? <RobotOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
-             type === "MODEL_API" ? <BulbOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
-             <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+      return getDefaultIcon(type)
     }
+  }
+
+  const getDefaultIcon = (type: string) => {
+    if (type === "REST_API") {
+      return <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+    } else if (type === "MCP_SERVER") {
+      return <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+    } else if (type === "AGENT_API") {
+      return <RobotOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+    } else if (type === "MODEL_API") {
+      return <BulbOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} />
+    }
+    return <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} />
   }
 
   const handleClick = useCallback(() => {
@@ -113,9 +120,9 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
                 {product.type === "REST_API" ? (
                   <ApiOutlined className="text-blue-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 ) : product.type === "AGENT_API" ? (
-                  <RobotOutlined className="text-orange-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                  <RobotOutlined className="text-gray-600 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 ) : product.type === "MODEL_API" ? (
-                  <BulbOutlined className="text-purple-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                  <BulbOutlined className="text-gray-600 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 ) : (
                   <McpServerIcon className="text-black mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 )}
@@ -428,7 +435,7 @@ export default function ApiProducts() {
                   const updatedFilters = activeFilters.filter(f => f.type !== 'category');
                   updatedFilters.push(newFilter);
                   setActiveFilters(updatedFilters);
-                  
+
                   const filters: { type?: string, name?: string, categoryIds?: string } = {};
                   updatedFilters.forEach(filter => {
                     if (filter.type === 'type' || filter.type === 'name') {
@@ -438,13 +445,13 @@ export default function ApiProducts() {
                       filters.categoryIds = filter.value;
                     }
                   });
-                  
+
                   setFilters(filters);
                   fetchApiProducts(1, pagination.pageSize, filters);
                   setSearchValue('');
                 }
               }}
-              style={{ 
+              style={{
                 flex: 1,
               }}
               allowClear
