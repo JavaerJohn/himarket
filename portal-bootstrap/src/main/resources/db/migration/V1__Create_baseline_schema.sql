@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS `developer_external_identity` (
     `provider` varchar(32) NOT NULL,
     `subject` varchar(128) NOT NULL,
     `display_name` varchar(128) DEFAULT NULL,
+    `auth_type` varchar(32) DEFAULT NULL,
     `raw_info_json` json DEFAULT NULL,
     `created_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),

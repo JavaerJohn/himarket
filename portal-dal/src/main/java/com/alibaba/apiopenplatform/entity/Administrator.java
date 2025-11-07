@@ -47,7 +47,7 @@ public class Administrator extends BaseEntity {
     @Column(nullable = false, unique = true, length = 64)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String passwordHash;
 
 } 

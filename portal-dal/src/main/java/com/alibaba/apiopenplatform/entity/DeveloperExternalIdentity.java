@@ -35,7 +35,7 @@ import lombok.Builder;
 @Table(name = "developer_external_identity", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"provider", "subject"}, name = "unique_provider_subject")
 })
-public class DeveloperExternalIdentity {
+public class DeveloperExternalIdentity extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
