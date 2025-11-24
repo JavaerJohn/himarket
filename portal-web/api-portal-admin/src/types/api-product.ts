@@ -65,7 +65,7 @@ export interface ApiProductAgentConfig {
 }
 
 export interface ApiProductModelConfig {
-  modelAPIConfig: {
+  aigwModelAPIConfig?: {
     modelCategory?: string;
     aiProtocols: string[];
     routes: Array<{
@@ -93,6 +93,41 @@ export interface ApiProductModelConfig {
         }> | null;
       };
     }>;
+  };
+  higressModelConfig?: {
+    route: {
+      domains: Array<{
+        domain: string;
+        protocol: string;
+        networkType?: string | null;
+      }>;
+      match: {
+        methods: string[] | null;
+        path: {
+          value: string;
+          type: string;
+          caseSensitive: boolean;
+        };
+        headers?: Array<{
+          name: string;
+          type: string;
+          value: string;
+          caseSensitive?: boolean;
+        }>;
+        queryParams?: Array<{
+          name: string;
+          type: string;
+          value: string;
+          caseSensitive?: boolean;
+        }>;
+        modelMatches?: Array<{
+          name: string;
+          type: string;
+          value: string;
+          caseSensitive?: boolean;
+        }>;
+      };
+    };
   };
 }
 
@@ -131,10 +166,15 @@ export interface AIGatewayAgentItem {
 export interface AIGatewayModelItem {
   modelApiId: string;
   modelApiName: string;
-  fromGatewayType: 'APIG_AI'; // Model API 只支持 APIG_AI 网关
+  fromGatewayType: 'APIG_AI';
 }
 
-export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
+export interface HigressModelItem {
+  modelRouteName: string;
+  fromGatewayType: 'HIGRESS';
+}
+
+export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem | HigressModelItem;
 
 // 关联服务配置
 export interface LinkedService {
@@ -143,7 +183,7 @@ export interface LinkedService {
   nacosId?: string;
   sourceType: 'GATEWAY' | 'NACOS';
   apigRefConfig?: RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
-  higressRefConfig?: HigressMCPItem;
+  higressRefConfig?: HigressMCPItem | HigressModelItem;
   nacosRefConfig?: NacosMCPItem;
   adpAIGatewayRefConfig?: APIGAIMCPItem;
   apsaraGatewayRefConfig?: APIGAIMCPItem;

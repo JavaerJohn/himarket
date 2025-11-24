@@ -84,7 +84,7 @@ function ModelPage() {
 
   // 获取适用场景英文标识
   const getModelCategoryLabel = (modelConfig?: any): string => {
-    const category = modelConfig?.modelAPIConfig?.modelCategory;
+    const category = modelConfig?.aigwModelAPIConfig?.modelCategory;
     if (!category) return 'Model';
     
     // 直接返回英文标识，首字母大写

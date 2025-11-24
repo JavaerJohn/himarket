@@ -34,6 +34,7 @@ function ModelDetail() {
   const [data, setData] = useState<Product | null>(null);
   const [modelConfig, setModelConfig] = useState<ApiProductModelConfig | null>(null);
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
+  const [selectedHigressDomainIndex, setSelectedHigressDomainIndex] = useState<number>(0);
 
   // 复制到剪贴板函数
   const copyToClipboard = async (text: string, description: string) => {
@@ -86,11 +87,11 @@ function ModelDetail() {
 
   // 获取所有唯一域名
   const getAllUniqueDomains = () => {
-    if (!modelConfig?.modelAPIConfig?.routes) return []
+    if (!modelConfig?.aigwModelAPIConfig?.routes) return []
     
     const domainsMap = new Map<string, { domain: string; protocol: string }>()
     
-    modelConfig.modelAPIConfig.routes.forEach(route => {
+    modelConfig.aigwModelAPIConfig.routes.forEach(route => {
       if (route.domains && route.domains.length > 0) {
         route.domains.forEach((domain: any) => {
           const key = `${domain.protocol}://${domain.domain}`
@@ -192,23 +193,21 @@ function ModelDetail() {
 
   // 生成curl命令示例
   const generateCurlExample = () => {
-    if (!modelConfig?.modelAPIConfig?.routes || !allUniqueDomains.length) {
-      return null;
-    }
+    // AI Gateway 的 cURL 生成
+    if (modelConfig?.aigwModelAPIConfig?.routes && allUniqueDomains.length) {
+      // 直接使用第一个路由
+      const firstRoute = modelConfig.aigwModelAPIConfig.routes[0];
 
-    // 直接使用第一个路由
-    const firstRoute = modelConfig.modelAPIConfig.routes[0];
+      if (!firstRoute?.match?.path?.value) {
+        return null;
+      }
 
-    if (!firstRoute?.match?.path?.value) {
-      return null;
-    }
+      // 使用选择的域名
+      const selectedDomain = allUniqueDomains[selectedModelDomainIndex] || allUniqueDomains[0];
+      const baseUrl = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}`;
+      const fullUrl = `${baseUrl}${firstRoute.match.path.value}`;
 
-    // 使用选择的域名
-    const selectedDomain = allUniqueDomains[selectedModelDomainIndex] || allUniqueDomains[0];
-    const baseUrl = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}`;
-    const fullUrl = `${baseUrl}${firstRoute.match.path.value}`;
-
-    return `curl --location '${fullUrl}' \\
+      return `curl --location '${fullUrl}' \\
   --header 'Content-Type: application/json' \\
   --data '{
     "model": "{{model_name}}",
@@ -227,6 +226,39 @@ function ModelDetail() {
         }
     ]
 }'`;
+    }
+
+    // Higress 的 cURL 生成
+    if (modelConfig?.higressModelConfig?.route) {
+      const route = modelConfig.higressModelConfig.route;
+      const domain = route.domains?.[0];
+      const path = route.match?.path?.value;
+
+      if (domain && path) {
+        const fullUrl = `${domain.protocol.toLowerCase()}://${domain.domain}${path}`;
+        return `curl --location '${fullUrl}' \\
+  --header 'Content-Type: application/json' \\
+  --data '{
+    "model": "{{model_name}}",
+    "stream": true,
+    "max_tokens": 1024,
+    "top_p": 0.95,
+    "temperature": 1,
+    "messages": [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant."
+        },
+        {
+            "role": "user",
+            "content": "你是谁？"
+        }
+    ]
+}'`;
+      }
+    }
+
+    return null;
   };
 
   if (loading) {
@@ -437,25 +469,25 @@ function ModelDetail() {
                 },
                 {
                   key: "configuration",
-                  label: `Configuration${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`,
-                  children: modelConfig?.modelAPIConfig ? (
+                  label: `Configuration${modelConfig?.aigwModelAPIConfig?.routes ? ` (${modelConfig.aigwModelAPIConfig.routes.length})` : modelConfig?.higressModelConfig ? ' (1)' : ''}`,
+                  children: modelConfig?.aigwModelAPIConfig ? (
                     <div className="space-y-4">
                       {/* 适用场景信息 */}
-                      {modelConfig.modelAPIConfig.modelCategory && (
+                      {modelConfig.aigwModelAPIConfig.modelCategory && (
                         <div className="text-sm">
                           <span className="text-gray-700">适用场景: </span>
-                          <span className="font-medium">{getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}</span>
+                          <span className="font-medium">{getModelCategoryText(modelConfig.aigwModelAPIConfig.modelCategory)}</span>
                         </div>
                       )}
 
                       {/* 协议信息 */}
                       <div className="text-sm">
                         <span className="text-gray-700">协议: </span>
-                        <span className="font-medium">{modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}</span>
+                        <span className="font-medium">{modelConfig.aigwModelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}</span>
                       </div>
 
                       {/* 路由配置表格 */}
-                      {modelConfig.modelAPIConfig.routes && modelConfig.modelAPIConfig.routes.length > 0 && (
+                      {modelConfig.aigwModelAPIConfig.routes && modelConfig.aigwModelAPIConfig.routes.length > 0 && (
                         <div>
                           <div className="text-sm text-gray-600 mb-3">路由配置:</div>
                           
@@ -494,7 +526,7 @@ function ModelDetail() {
                           
                           <div className="border border-gray-200 rounded-lg overflow-hidden">
                             <Collapse ghost expandIconPosition="end">
-                              {modelConfig.modelAPIConfig.routes.map((route, index) => (
+                              {modelConfig.aigwModelAPIConfig.routes.map((route, index) => (
                                 <Panel
                                   key={index}
                                   header={
@@ -532,7 +564,7 @@ function ModelDetail() {
                                     </div>
                                   }
                                   style={{
-                                    borderBottom: index < modelConfig.modelAPIConfig.routes.length - 1 ? '1px solid #e5e7eb' : 'none'
+                                    borderBottom: index < modelConfig.aigwModelAPIConfig.routes.length - 1 ? '1px solid #e5e7eb' : 'none'
                                   }}
                                 >
                                   <div className="pl-4 space-y-3">
@@ -597,6 +629,217 @@ function ModelDetail() {
                         </div>
                       )}
                     </div>
+                  ) : modelConfig?.higressModelConfig ? (
+                    (() => {
+                      const route = modelConfig.higressModelConfig.route
+                      // 生成域名选择器选项
+                      const higressDomainOptions = route.domains?.map((domain, index) => ({
+                        value: index,
+                        label: `${domain.protocol.toLowerCase()}://${domain.domain}`
+                      })) || []
+
+                      return (
+                        <div className="space-y-4">
+                          {/* 路由配置 */}
+                          <div>
+                            <div className="text-sm text-gray-600 mb-3">路由配置:</div>
+
+                            {/* 域名选择器 */}
+                            {higressDomainOptions.length > 0 && (
+                              <div className="mb-2">
+                                <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
+                                  <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                                    域名
+                                  </div>
+                                  <div className="flex-1">
+                                    <Select
+                                      value={selectedHigressDomainIndex}
+                                      onChange={setSelectedHigressDomainIndex}
+                                      className="w-full"
+                                      placeholder="选择域名"
+                                      size="middle"
+                                      bordered={false}
+                                      style={{
+                                        fontSize: '12px',
+                                        height: '100%'
+                                      }}
+                                    >
+                                      {higressDomainOptions.map((option) => (
+                                        <Select.Option key={option.value} value={option.value}>
+                                          <span className="text-xs text-gray-900 font-mono">
+                                            {option.label}
+                                          </span>
+                                        </Select.Option>
+                                      ))}
+                                    </Select>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
+                              <Collapse ghost expandIconPosition="end">
+                                <Panel
+                                  key="higress-route"
+                                  header={
+                                    <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50">
+                                      <div className="flex-1">
+                                        <div className="font-mono text-sm font-medium text-blue-600 mb-1">
+                                          {(() => {
+                                            if (!route.match) return 'Unknown Route'
+                                            
+                                            const path = route.match.path?.value || '/'
+                                            const pathType = route.match.path?.type
+                                            
+                                            // 拼接域名信息 - 使用选择的域名索引
+                                            let domainInfo = ''
+                                            if (route.domains && route.domains.length > 0 && route.domains.length > selectedHigressDomainIndex) {
+                                              const domain = route.domains[selectedHigressDomainIndex]
+                                              domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
+                                            } else if (route.domains && route.domains.length > 0) {
+                                              // 回退到第一个域名
+                                              const domain = route.domains[0]
+                                              domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
+                                            }
+                                            
+                                            // 构建路由信息
+                                            let pathWithSuffix = path
+                                            if (pathType === 'PRE' || pathType === 'Prefix') {
+                                              pathWithSuffix = `${path}*`
+                                            } else if (pathType === 'RegularExpression') {
+                                              pathWithSuffix = `${path}~`
+                                            }
+                                            
+                                            return `${domainInfo}${pathWithSuffix}`
+                                          })()}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          方法: <span className="font-medium text-gray-700">
+                                            {(() => {
+                                              const methods = route.match?.methods
+                                              if (!methods || methods.length === 0) return 'ANY'
+                                              return methods.join(', ')
+                                            })()}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <Button
+                                        size="small"
+                                        type="text"
+                                        icon={<CopyOutlined />}
+                                        onClick={async (e) => {
+                                          e.stopPropagation()
+                                          if (route.domains && route.domains.length > 0 && route.domains.length > selectedHigressDomainIndex) {
+                                            const domain = route.domains[selectedHigressDomainIndex]
+                                            const path = route.match?.path?.value || '/'
+                                            const fullUrl = `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
+                                            await copyToClipboard(fullUrl, "链接")
+                                          } else if (route.domains && route.domains.length > 0) {
+                                            const domain = route.domains[0]
+                                            const path = route.match?.path?.value || '/'
+                                            const fullUrl = `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
+                                            await copyToClipboard(fullUrl, "链接")
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  }
+                            >
+                              {(() => {
+                                const route = modelConfig.higressModelConfig.route
+                                const getMatchTypePrefix = (matchType: string) => {
+                                  switch (matchType) {
+                                    case 'Exact':
+                                      return '等于'
+                                    case 'PRE':
+                                    case 'Prefix':
+                                      return '前缀是'
+                                    case 'RegularExpression':
+                                      return '正则是'
+                                    default:
+                                      return '等于'
+                                  }
+                                }
+                                
+                                return (
+                                  <div className="pl-4 space-y-3">
+                                    {/* 域名信息 */}
+                                    <div>
+                                      <div className="text-xs text-gray-500 mb-1">域名:</div>
+                                      {route.domains?.map((domain: any, domainIndex: number) => (
+                                        <div key={domainIndex} className="text-sm">
+                                          <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {/* 匹配规则 */}
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                      <div>
+                                        <div className="text-xs text-gray-500">路径:</div>
+                                        <div className="font-mono">
+                                          {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-xs text-gray-500">方法:</div>
+                                        <div className="font-mono">
+                                          {route.match?.methods ? route.match.methods.join(', ') : 'ANY'}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* 请求头匹配 */}
+                                    {route.match?.headers && route.match.headers.length > 0 && (
+                                      <div>
+                                        <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                                        <div className="space-y-1">
+                                          {route.match.headers.map((header: any, headerIndex: number) => (
+                                            <div key={headerIndex} className="text-sm font-mono">
+                                              {header.name} {getMatchTypePrefix(header.type)} {header.value}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* 查询参数匹配 */}
+                                    {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                                      <div>
+                                        <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                                        <div className="space-y-1">
+                                          {route.match.queryParams.map((param: any, paramIndex: number) => (
+                                            <div key={paramIndex} className="text-sm font-mono">
+                                              {param.name} {getMatchTypePrefix(param.type)} {param.value}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* 模型匹配（Higress 特有） */}
+                                    {route.match?.modelMatches && route.match.modelMatches.length > 0 && (
+                                      <div>
+                                        <div className="text-xs text-gray-500 mb-1">模型匹配:</div>
+                                        <div className="space-y-1">
+                                          {route.match.modelMatches.map((model: any, modelIndex: number) => (
+                                            <div key={modelIndex} className="text-sm font-mono">
+                                              {model.name} {getMatchTypePrefix(model.type)} {model.value}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })()}
+                            </Panel>
+                          </Collapse>
+                        </div>
+                      </div>
+                    </div>
+                      )
+                    })()
                   ) : (
                     <div className="text-gray-500 text-center py-8">
                       No configuration available
@@ -630,7 +873,7 @@ function ModelDetail() {
                 {
                   key: "curl",
                   label: "cURL",
-                  children: modelConfig?.modelAPIConfig ? (
+                  children: modelConfig?.aigwModelAPIConfig ? (
                     <div className="space-y-4">
                       {generateCurlExample() ? (
                         <div className="relative">

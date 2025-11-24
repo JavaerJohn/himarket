@@ -36,6 +36,6 @@ public class ModelConfigResult {
 	@Data
 	@Builder
 	public static class HigressModelConfig {
-      private HigressRouteResult aiRoute;
+      private HigressRouteResult route;
     }
 }

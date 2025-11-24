@@ -1,7 +1,7 @@
 import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } from 'antd'
 import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import type { ApiProduct, LinkedService, RestAPIItem, HigressMCPItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem } from '@/types/api-product'
+import type { ApiProduct, LinkedService, RestAPIItem, HigressMCPItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, HigressModelItem, ApiItem } from '@/types/api-product'
 import type { Gateway, NacosInstance } from '@/types/gateway'
 import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
@@ -50,6 +50,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0)
   const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState<number>(0)
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0)
+  const [selectedHigressDomainIndex, setSelectedHigressDomainIndex] = useState<number>(0)
 
   useEffect(() => {    
     fetchGateways()
@@ -88,7 +89,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         // 从linkedService中获取真实的MCP Server名称
         if (linkedService.sourceType === 'GATEWAY' && linkedService.apigRefConfig && 'mcpServerName' in linkedService.apigRefConfig) {
           mcpServerName = linkedService.apigRefConfig.mcpServerName || apiProduct.name
-        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig) {
+        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig && 'mcpServerName' in linkedService.higressRefConfig) {
           mcpServerName = linkedService.higressRefConfig.mcpServerName || apiProduct.name
         } else if (linkedService.sourceType === 'GATEWAY' && linkedService.adpAIGatewayRefConfig) {
           mcpServerName = linkedService.adpAIGatewayRefConfig.mcpServerName || apiProduct.name
@@ -355,8 +356,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             size: 1000 // 获取所有Model API
           })
           const modelApis = (res.data?.content || []).map((api: any) => ({
-            modelApiId: api.modelApiId,
-            modelApiName: api.modelApiName,
+            modelRouteName: api.modelRouteName,
             fromGatewayType: 'HIGRESS' as const,
             type: 'Model API'
           }))
@@ -515,9 +515,15 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         } else if ('agentApiId' in item || 'agentApiName' in item) {
           // Agent API: 匹配agentApiId或agentApiName
           return item.agentApiId === apiId || item.agentApiName === apiId
-        } else if ('modelApiId' in item || 'modelApiName' in item) {
-          // Model API: 匹配modelApiId或modelApiName
-          return item.modelApiId === apiId || item.modelApiName === apiId
+        } else if ('modelApiId' in item || 'modelApiName' in item || ('modelRouteName' in item && 'fromGatewayType' in item && item.fromGatewayType === 'HIGRESS')) {
+          // Model API: 兼容 AI Gateway 和 Higress
+          if ('modelRouteName' in item && 'fromGatewayType' in item && item.fromGatewayType === 'HIGRESS') {
+            // Higress Model
+            return item.modelRouteName === apiId
+          } else {
+            // AI Gateway Model
+            return item.modelApiId === apiId || item.modelApiName === apiId
+          }
         }
         return false
       })
@@ -526,8 +532,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         nacosId: sourceType === 'NACOS' ? nacosId : undefined,
         sourceType,
         productId: apiProduct.productId,
-        apigRefConfig: selectedApi && ('apiId' in selectedApi || 'agentApiId' in selectedApi || 'agentApiName' in selectedApi || 'modelApiId' in selectedApi || 'modelApiName' in selectedApi) && (!('fromGatewayType' in selectedApi) || selectedApi.fromGatewayType !== 'HIGRESS') ? selectedApi as RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem : undefined,
-        higressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'HIGRESS' ? selectedApi as HigressMCPItem : undefined,
+        apigRefConfig: selectedApi && ('apiId' in selectedApi || 'agentApiId' in selectedApi || 'agentApiName' in selectedApi || ('modelApiId' in selectedApi && (!('fromGatewayType' in selectedApi) || selectedApi.fromGatewayType === 'APIG_AI'))) && (!('fromGatewayType' in selectedApi) || selectedApi.fromGatewayType !== 'HIGRESS') ? selectedApi as RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem : undefined,
+        higressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'HIGRESS' ? selectedApi as HigressMCPItem | HigressModelItem : undefined,
         nacosRefConfig: sourceType === 'NACOS' && selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'NACOS' ? {
           ...selectedApi,
           namespaceId: selectedNamespace || 'public'
@@ -618,7 +624,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiName = linkedService.apigRefConfig.mcpServerName || '未命名'
         sourceInfo = 'AI网关'
         gatewayInfo = linkedService.gatewayId || '未知'
-      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig) {
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig && 'mcpServerName' in linkedService.higressRefConfig) {
         // Higress网关上的MCP Server
         apiName = linkedService.higressRefConfig.mcpServerName || '未命名'
         sourceInfo = 'Higress网关'
@@ -651,14 +657,21 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       }
       // 注意：Agent API 不支持专有云AI网关（ADP_AI_GATEWAY）
     } else if (apiProduct.type === 'MODEL_API') {
-      // Model API 类型产品 - 只能关联 AI 网关上的 Model API
+      // Model API 类型产品 - 可以关联 AI 网关或 Higress 上的 Model API
       apiType = 'Model API'
 
-      if (linkedService.sourceType === 'GATEWAY' && linkedService.apigRefConfig && 'modelApiName' in linkedService.apigRefConfig) {
-        // AI网关上的Model API
-        apiName = linkedService.apigRefConfig.modelApiName || '未命名'
-        sourceInfo = 'AI网关'
-        gatewayInfo = linkedService.gatewayId || '未知'
+      if (linkedService.sourceType === 'GATEWAY') {
+        if (linkedService.apigRefConfig && 'modelApiName' in linkedService.apigRefConfig) {
+          // AI 网关上的 Model API
+          apiName = linkedService.apigRefConfig.modelApiName || '未命名'
+          sourceInfo = 'AI网关'
+          gatewayInfo = linkedService.gatewayId || '未知'
+        } else if (linkedService.higressRefConfig && 'modelRouteName' in linkedService.higressRefConfig) {
+          // Higress 上的 Model API
+          apiName = linkedService.higressRefConfig.modelRouteName || '未命名'
+          sourceInfo = 'Higress'
+          gatewayInfo = linkedService.gatewayId || '未知'
+        }
       }
       // 注意：Model API 不支持专有云AI网关（ADP_AI_GATEWAY）
     }
@@ -1189,10 +1202,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
 
     // Model API类型：显示协议支持和路由配置
-    if (isModel && apiProduct.modelConfig?.modelAPIConfig) {
-      const modelAPIConfig = apiProduct.modelConfig.modelAPIConfig
-      const routes = modelAPIConfig.routes || []
-      const protocols = modelAPIConfig.aiProtocols || []
+    if (isModel && apiProduct.modelConfig?.aigwModelAPIConfig) {
+      const aigwModelAPIConfig = apiProduct.modelConfig.aigwModelAPIConfig
+      const routes = aigwModelAPIConfig.routes || []
+      const protocols = aigwModelAPIConfig.aiProtocols || []
 
       // 获取所有唯一域名的简化版本
       const getAllModelUniqueDomains = () => {
@@ -1317,10 +1330,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         <Card title="配置详情">
           <div className="space-y-4">
           {/* 适用场景信息 */}
-          {modelAPIConfig.modelCategory && (
+          {aigwModelAPIConfig.modelCategory && (
             <div className="text-sm">
               <span className="text-gray-700">适用场景: </span>
-              <span className="font-medium">{getModelCategoryText(modelAPIConfig.modelCategory)}</span>
+              <span className="font-medium">{getModelCategoryText(aigwModelAPIConfig.modelCategory)}</span>
             </div>
           )}
 
@@ -1469,6 +1482,232 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                 </div>
               </div>
             )}
+          </div>
+        </Card>
+      )
+    }
+
+    // Higress Model API类型：显示路由配置
+    if (isModel && apiProduct.modelConfig?.higressModelConfig) {
+      const higressModelConfig = apiProduct.modelConfig.higressModelConfig
+      const route = higressModelConfig.route
+
+      // 生成域名选择器选项
+      const higressDomainOptions = route.domains?.map((domain, index) => ({
+        value: index,
+        label: `${domain.protocol.toLowerCase()}://${domain.domain}`
+      })) || []
+
+      // 辅助函数
+      const getMatchTypePrefix = (matchType: string) => {
+        switch (matchType) {
+          case 'Exact':
+            return '等于'
+          case 'PRE':
+          case 'Prefix':
+            return '前缀是'
+          case 'RegularExpression':
+            return '正则是'
+          default:
+            return '等于'
+        }
+      }
+
+      const getMethodsText = () => {
+        const methods = route.match?.methods
+        if (!methods || methods.length === 0) {
+          return 'ANY'
+        }
+        return methods.join(', ')
+      }
+
+      const getRouteDisplayText = (domainIndex: number = 0) => {
+        if (!route.match) return 'Unknown Route'
+
+        const path = route.match.path?.value || '/'
+        const pathType = route.match.path?.type
+
+        // 拼接域名信息 - 使用选择的域名索引
+        let domainInfo = ''
+        if (route.domains && route.domains.length > 0 && route.domains.length > domainIndex) {
+          const domain = route.domains[domainIndex]
+          domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
+        } else if (route.domains && route.domains.length > 0) {
+          // 回退到第一个域名
+          const domain = route.domains[0]
+          domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
+        }
+
+        // 构建路由信息（匹配符号加到path后面）
+        let pathWithSuffix = path
+        if (pathType === 'PRE' || pathType === 'Prefix') {
+          pathWithSuffix = `${path}*`
+        } else if (pathType === 'RegularExpression') {
+          pathWithSuffix = `${path}~`
+        }
+
+        return `${domainInfo}${pathWithSuffix}`
+      }
+
+      const getFullUrl = (domainIndex: number = 0) => {
+        if (route.domains && route.domains.length > 0 && route.domains.length > domainIndex) {
+          const domain = route.domains[domainIndex]
+          const path = route.match?.path?.value || '/'
+          return `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
+        } else if (route.domains && route.domains.length > 0) {
+          const domain = route.domains[0]
+          const path = route.match?.path?.value || '/'
+          return `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
+        }
+        return null
+      }
+
+      return (
+        <Card title="配置详情">
+          <div className="space-y-4">
+            {/* 路由配置 */}
+            <div>
+              <div className="text-sm text-gray-600 mb-3">路由配置:</div>
+
+              {/* 域名选择器 */}
+              {higressDomainOptions.length > 0 && (
+                <div className="mb-2">
+                  <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
+                    <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                      域名
+                    </div>
+                    <div className="flex-1">
+                      <Select
+                        value={selectedHigressDomainIndex}
+                        onChange={setSelectedHigressDomainIndex}
+                        className="w-full"
+                        placeholder="选择域名"
+                        size="middle"
+                        bordered={false}
+                        style={{
+                          fontSize: '12px',
+                          height: '100%'
+                        }}
+                      >
+                        {higressDomainOptions.map((option) => (
+                          <Select.Option key={option.value} value={option.value}>
+                            <span className="text-xs text-gray-900 font-mono">
+                              {option.label}
+                            </span>
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <Collapse ghost expandIconPosition="end">
+                  <Collapse.Panel
+                    key="higress-route"
+                    header={
+                      <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50">
+                        <div className="flex-1">
+                          <div className="font-mono text-sm font-medium text-blue-600 mb-1">
+                            {getRouteDisplayText(selectedHigressDomainIndex)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            方法: <span className="font-medium text-gray-700">{getMethodsText()}</span>
+                          </div>
+                        </div>
+                        <Button
+                          size="small"
+                          type="text"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            const fullUrl = getFullUrl(selectedHigressDomainIndex)
+                            if (fullUrl) {
+                              try {
+                                await copyToClipboard(fullUrl)
+                                message.success('链接已复制到剪贴板')
+                              } catch (error) {
+                                message.error('复制失败')
+                              }
+                            }
+                          }}
+                        >
+                          <CopyOutlined />
+                        </Button>
+                      </div>
+                    }
+                  >
+                    <div className="pl-4 space-y-3">
+                      {/* 域名信息 */}
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">域名:</div>
+                        {route.domains?.map((domain: any, domainIndex: number) => (
+                          <div key={domainIndex} className="text-sm">
+                            <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 匹配规则 */}
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs text-gray-500">路径:</div>
+                          <div className="font-mono">
+                            {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">方法:</div>
+                          <div>{getMethodsText()}</div>
+                        </div>
+                      </div>
+
+                      {/* 请求头匹配 */}
+                      {route.match?.headers && route.match.headers.length > 0 && (
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                          <div className="space-y-1">
+                            {route.match.headers.map((header: any, headerIndex: number) => (
+                              <div key={headerIndex} className="text-sm font-mono">
+                                {header.name} {getMatchTypePrefix(header.type)} {header.value}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 查询参数匹配 */}
+                      {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                          <div className="space-y-1">
+                            {route.match.queryParams.map((param: any, paramIndex: number) => (
+                              <div key={paramIndex} className="text-sm font-mono">
+                                {param.name} {getMatchTypePrefix(param.type)} {param.value}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 模型匹配（Higress 特有） */}
+                      {route.match?.modelMatches && route.match.modelMatches.length > 0 && (
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">模型匹配:</div>
+                          <div className="space-y-1">
+                            {route.match.modelMatches.map((model: any, modelIndex: number) => (
+                              <div key={modelIndex} className="text-sm font-mono">
+                                {model.name} {getMatchTypePrefix(model.type)} {model.value}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Collapse.Panel>
+                </Collapse>
+              </div>
+            </div>
           </div>
         </Card>
       )
@@ -1660,9 +1899,17 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                     value = api.agentApiId || api.agentApiName;
                     displayName = api.agentApiName;
                   } else if (apiProduct.type === 'MODEL_API') {
-                    key = api.modelApiId || api.modelApiName;
-                    value = api.modelApiId || api.modelApiName;
-                    displayName = api.modelApiName;
+                    // 区分 Higress 和 AI Gateway
+                    if (api.fromGatewayType === 'HIGRESS') {
+                      key = api.modelRouteName;
+                      value = api.modelRouteName;
+                      displayName = api.modelRouteName;
+                    } else {
+                      // AI Gateway
+                      key = api.modelApiId || api.modelApiName;
+                      value = api.modelApiId || api.modelApiName;
+                      displayName = api.modelApiName;
+                    }
                   } else {
                     // MCP Server
                     key = api.mcpRouteId || api.mcpServerName || api.name;

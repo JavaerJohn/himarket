@@ -121,7 +121,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
             List<HigressModelResult> modelAPIs = response.getData().stream()
                     .map(config -> HigressModelResult.builder()
-                            .name(config.getName())
+                            .modelRouteName(config.getName())
                             .build())
                     .collect(Collectors.toList());
 
@@ -225,7 +225,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
         HigressRouteResult higressRouteResult = new HigressRouteResult().convertFrom(higressRouteConfig);
         ModelConfigResult.HigressModelConfig higressModelConfig = ModelConfigResult.HigressModelConfig.builder()
-                .aiRoute(higressRouteResult)
+                .route(higressRouteResult)
                 .build();
 
         result.setHigressModelConfig(higressModelConfig);
