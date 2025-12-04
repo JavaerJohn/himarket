@@ -1,37 +1,27 @@
-import { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import api from "../lib/api";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import {
-  Card,
-  Alert,
-  Button,
-  message,
-  Tabs,
-  Row,
-  Col,
-  Collapse,
-  Select,
+  Alert, Button, message,
+  Tabs, Collapse, Select,
+  Spin, Tooltip,
 } from "antd";
-import { CopyOutlined } from "@ant-design/icons";
-import ReactMarkdown from "react-markdown";
+import { ArrowLeftOutlined, CopyOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
-import type {
-  Product,
-  McpConfig,
-  McpServerProduct,
-  ApiResponse,
-} from "../types";
 import * as yaml from "js-yaml";
-import remarkGfm from 'remark-gfm';
-import 'react-markdown-editor-lite/lib/index.css'
+import type { IMCPConfig } from "../lib/apis/typing";
+import type { IProductDetail } from "../lib/apis";
+import APIs from "../lib/apis";
+import MarkdownRender from "../components/MarkdownRender";
+import { copyToClipboard } from "../lib/utils";
 
 function McpDetail() {
   const { mcpProductId } = useParams();
   const [error, setError] = useState("");
-  const [data, setData] = useState<Product | null>(null);
-  const [mcpConfig, setMcpConfig] = useState<McpConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<IProductDetail>();
+  const [mcpConfig, setMcpConfig] = useState<IMCPConfig>();
   const [parsedTools, setParsedTools] = useState<
     Array<{
       name: string;
@@ -51,6 +41,8 @@ function McpDetail() {
   const [sseJson, setSseJson] = useState("");
   const [localJson, setLocalJson] = useState("");
   const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
+
+  const navigate = useNavigate();
 
   // 解析YAML配置的函数
   const parseYamlConfig = (
@@ -199,15 +191,16 @@ function McpDetail() {
       if (!mcpProductId) {
         return;
       }
+      setLoading(true);
       setError("");
       try {
-        const response: ApiResponse<Product> = await api.get(`/products/${mcpProductId}`);
+        const response = await APIs.getProduct({ id: mcpProductId });
         if (response.code === "SUCCESS" && response.data) {
           setData(response.data);
 
           // 处理MCP配置（统一使用新结构 mcpConfig）
           if (response.data.type === ProductType.MCP_SERVER) {
-            const mcpProduct = response.data as McpServerProduct;
+            const mcpProduct = response.data;
 
             if (mcpProduct.mcpConfig) {
               setMcpConfig(mcpProduct.mcpConfig);
@@ -229,6 +222,8 @@ function McpDetail() {
       } catch (error) {
         console.error("API请求失败:", error);
         setError("加载失败，请稍后重试");
+      } finally {
+        setLoading(false);
       }
     };
     fetchDetail();
@@ -242,7 +237,7 @@ function McpDetail() {
         mcpConfig.mcpServerConfig.path,
         mcpConfig.mcpServerName || data.name,
         mcpConfig.mcpServerConfig.rawConfig,
-        (mcpConfig.meta as any)?.protocol,
+        mcpConfig.meta?.protocol,
         selectedDomainIndex
       );
     }
@@ -260,39 +255,41 @@ function McpDetail() {
   }
 
   const handleCopy = async (text: string) => {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // 非安全上下文降级处理
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.style.position = "fixed";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-      message.success("已复制到剪贴板", 1);
-    } catch {
-      message.error("复制失败，请手动复制");
-    }
+    copyToClipboard(text).then(() => {
+      message.success("已复制到剪贴板")
+    });
   };
 
+
+  const domainOptions = useMemo(() => {
+    return getDomainOptions(mcpConfig?.mcpServerConfig?.domains || []);
+  }, [mcpConfig?.mcpServerConfig?.domains]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-screen">
+          <Spin size="large" tip="加载中..." />
+        </div>
+      </Layout>
+    );
+  }
 
   if (error) {
     return (
       <Layout>
-        <Alert message={error} type="error" showIcon className="my-8" />
+        <div className="p-8">
+          <Alert message="错误" description={error} type="error" showIcon />
+        </div>
       </Layout>
     );
   }
+
   if (!data) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-64">
-          <div>Loading...</div>
+        <div className="flex justify-center items-center h-screen">
+          <Spin size="large" tip="加载中..." />
         </div>
       </Layout>
     );
@@ -302,10 +299,22 @@ function McpDetail() {
   const hasLocalConfig = Boolean(mcpConfig?.mcpServerConfig.rawConfig);
 
 
-
   return (
     <Layout>
-      <div className="mb-6">
+      {/* 头部 */}
+      <div className="mb-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="
+            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
+            text-gray-600 hover:text-colorPrimary
+            hover:bg-colorPrimaryBgHover
+            transition-all duration-200
+          "
+        >
+          <ArrowLeftOutlined />
+          <span>返回</span>
+        </button>
         <ProductHeader
           name={name}
           description={description}
@@ -315,175 +324,23 @@ function McpDetail() {
           updatedAt={data.updatedAt}
           productType="MCP_SERVER"
         />
-        <hr className="border-gray-200 mt-4" />
       </div>
 
       {/* 主要内容区域 - 左右布局 */}
-      <Row gutter={24}>
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* 左侧内容 */}
-        <Col span={15}>
-          <Card className="mb-6 rounded-lg border-gray-200">
+        <div className="w-full lg:w-[65%] order-2 lg:order-1">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
             <Tabs
               defaultActiveKey="overview"
+              // className="model-detail-tabs"
               items={[
                 {
                   key: "overview",
                   label: "Overview",
                   children: data.document ? (
-                    <div className="min-h-[400px]">
-                      <div 
-                        className="prose prose-lg max-w-none"
-                        style={{
-                          lineHeight: '1.7',
-                          color: '#374151',
-                          fontSize: '16px',
-                          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-                        }}
-                      >
-                        <style>{`
-                          .prose h1 {
-                            color: #111827;
-                            font-weight: 700;
-                            font-size: 2.25rem;
-                            line-height: 1.2;
-                            margin-top: 0;
-                            margin-bottom: 1.5rem;
-                            border-bottom: 2px solid #e5e7eb;
-                            padding-bottom: 0.5rem;
-                          }
-                          .prose h2 {
-                            color: #1f2937;
-                            font-weight: 600;
-                            font-size: 1.875rem;
-                            line-height: 1.3;
-                            margin-top: 2rem;
-                            margin-bottom: 1rem;
-                            border-bottom: 1px solid #e5e7eb;
-                            padding-bottom: 0.25rem;
-                          }
-                          .prose h3 {
-                            color: #374151;
-                            font-weight: 600;
-                            font-size: 1.5rem;
-                            margin-top: 1.5rem;
-                            margin-bottom: 0.75rem;
-                          }
-                          .prose p {
-                            margin-bottom: 1.25rem;
-                            color: #4b5563;
-                            line-height: 1.7;
-                            font-size: 16px;
-                          }
-                          .prose code {
-                            background-color: #f3f4f6;
-                            border: 1px solid #e5e7eb;
-                            border-radius: 0.375rem;
-                            padding: 0.125rem 0.375rem;
-                            font-size: 0.875rem;
-                            color: #374151;
-                            font-weight: 500;
-                          }
-                          .prose pre {
-                            background-color: #1f2937;
-                            border-radius: 0.5rem;
-                            padding: 1.25rem;
-                            overflow-x: auto;
-                            margin: 1.5rem 0;
-                            border: 1px solid #374151;
-                          }
-                          .prose pre code {
-                            background-color: transparent;
-                            border: none;
-                            color: #f9fafb;
-                            padding: 0;
-                            font-size: 0.875rem;
-                            font-weight: normal;
-                          }
-                          .prose blockquote {
-                            border-left: 4px solid #3b82f6;
-                            padding-left: 1rem;
-                            margin: 1.5rem 0;
-                            color: #6b7280;
-                            font-style: italic;
-                            background-color: #f8fafc;
-                            padding: 1rem;
-                            border-radius: 0.375rem;
-                            font-size: 16px;
-                          }
-                          .prose ul, .prose ol {
-                            margin: 1.25rem 0;
-                            padding-left: 1.5rem;
-                          }
-                          .prose ol {
-                            list-style-type: decimal;
-                            list-style-position: outside;
-                          }
-                          .prose ul {
-                            list-style-type: disc;
-                            list-style-position: outside;
-                          }
-                          .prose li {
-                            margin: 0.5rem 0;
-                            color: #4b5563;
-                            display: list-item;
-                            font-size: 16px;
-                          }
-                          .prose ol li {
-                            padding-left: 0.25rem;
-                          }
-                          .prose ul li {
-                            padding-left: 0.25rem;
-                          }
-                          .prose table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin: 1.5rem 0;
-                            font-size: 16px;
-                          }
-                          .prose th, .prose td {
-                            border: 1px solid #d1d5db;
-                            padding: 0.75rem;
-                            text-align: left;
-                          }
-                          .prose th {
-                            background-color: #f9fafb;
-                            font-weight: 600;
-                            color: #374151;
-                            font-size: 16px;
-                          }
-                          .prose td {
-                            color: #4b5563;
-                            font-size: 16px;
-                          }
-                          .prose a {
-                            color: #3b82f6;
-                            text-decoration: underline;
-                            font-weight: 500;
-                            transition: color 0.2s;
-                            font-size: inherit;
-                          }
-                          .prose a:hover {
-                            color: #1d4ed8;
-                          }
-                          .prose strong {
-                            color: #111827;
-                            font-weight: 600;
-                            font-size: inherit;
-                          }
-                          .prose em {
-                            color: #6b7280;
-                            font-style: italic;
-                            font-size: inherit;
-                          }
-                          .prose hr {
-                            border: none;
-                            height: 1px;
-                            background-color: #e5e7eb;
-                            margin: 2rem 0;
-                          }
-                        `}</style>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.document}</ReactMarkdown>
-                      </div>
+                    <div className="min-h-[400px] prose prose-lg">
+                      <MarkdownRender content={data.document} />
                     </div>
                   ) : (
                     <div className="text-gray-500 text-center py-8">
@@ -507,7 +364,7 @@ function McpDetail() {
                               children: (
                                 <div className="px-4 pb-2">
                                   <div className="text-gray-600 mb-4">{tool.description}</div>
-                                  
+
                                   {tool.args && tool.args.length > 0 && (
                                     <div>
                                       <p className="font-medium text-gray-700 mb-3">输入参数:</p>
@@ -536,7 +393,7 @@ function McpDetail() {
                                       ))}
                                     </div>
                                   )}
-                                  
+
                                   {(!tool.args || tool.args.length === 0) && (
                                     <div className="text-gray-500 text-sm">No parameters required</div>
                                   )}
@@ -555,126 +412,137 @@ function McpDetail() {
                 },
               ]}
             />
-          </Card>
-        </Col>
+          </div>
+        </div>
 
         {/* 右侧连接指导 */}
-        <Col span={9}>
+        <div className="w-full lg:w-[35%] order-1 lg:order-2">
           {mcpConfig && (
-            <Card className="mb-6 rounded-lg border-gray-200">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+            <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-base font-semibold  text-gray-900">
+                  连接点配置
+                </h3>
+                <CopyOutlined className="ml-1 text-sm text-subTitle" onClick={() => {
+                  copyToClipboard(domainOptions[selectedDomainIndex].label).then(() => {
+                    message.success("域名已复制");
+                  });
+                }} />
+              </div>
 
-                {/* 域名选择器 */}
-                {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 0 && (
-                  <div className="mb-2">
-                    <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
-                      <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
-                        域名
-                      </div>
-                      <div className="flex-1">
-                        <Select
-                          value={selectedDomainIndex}
-                          onChange={setSelectedDomainIndex}
-                          className="w-full"
-                          placeholder="选择域名"
-                          size="middle"
-                          bordered={false}
-                          style={{
-                            fontSize: '12px',
-                            height: '100%'
-                          }}
-                        >
-                          {getDomainOptions(mcpConfig.mcpServerConfig.domains).map((option) => (
-                            <Select.Option key={option.value} value={option.value}>
+              {/* 域名选择器 */}
+              {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 0 && (
+                <div className="mb-2">
+                  <div className="flex border border-gray-200 rounded-md overflow-hidden">
+                    <div
+                      className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                      域名
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Select
+                        value={selectedDomainIndex}
+                        onChange={setSelectedDomainIndex}
+                        className="w-full"
+                        placeholder="选择域名"
+                        size="middle"
+                        variant="borderless"
+                        style={{
+                          fontSize: '12px',
+                          height: '100%'
+                        }}
+                      // options={getDomainOptions(mcpConfig.mcpServerConfig.domains)}
+                      >
+                        {domainOptions.map((option) => (
+                          <Select.Option key={option.value} value={option.value}>
+                            <Tooltip classNames={{ root: "bg-white" }} title={<span className="text-gray-900 bg-white">{option.label}</span>}>
                               <span className="text-xs text-gray-900 font-mono">
                                 {option.label}
                               </span>
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </div>
+                            </Tooltip>
+                          </Select.Option>
+                        ))}
+                      </Select>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                <Tabs
-                  size="small" 
-                  defaultActiveKey={hasLocalConfig ? "local" : (sseJson ? "sse" : "http")}
-                  items={(() => {
-                    const tabs = [];
-                    
-                    if (hasLocalConfig) {
+              <Tabs
+                size="small"
+                defaultActiveKey={hasLocalConfig ? "local" : (sseJson ? "sse" : "http")}
+                items={(() => {
+                  const tabs = [];
+
+                  if (hasLocalConfig) {
+                    tabs.push({
+                      key: "local",
+                      label: "Stdio",
+                      children: (
+                        <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<CopyOutlined />}
+                            className="absolute top-2 right-2 z-10 text-gray-400 hover:text-white"
+                            onClick={() => handleCopy(localJson)}
+                          />
+                          <div className="bg-gray-800 text-gray-100 font-mono text-xs overflow-x-auto">
+                            <pre className="whitespace-pre p-3">{localJson}</pre>
+                          </div>
+                        </div>
+                      ),
+                    });
+                  } else {
+                    if (sseJson) {
                       tabs.push({
-                        key: "local",
-                        label: "Stdio",
+                        key: "sse",
+                        label: "SSE",
                         children: (
-                          <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                          <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
                             <Button
                               type="text"
                               size="small"
                               icon={<CopyOutlined />}
-                              className="absolute top-2 right-2 z-10"
-                              onClick={() => handleCopy(localJson)}
+                              className="absolute top-2 right-2 z-10 text-gray-400 hover:text-white"
+                              onClick={() => handleCopy(sseJson)}
                             />
-                            <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                              <pre className="whitespace-pre">{localJson}</pre>
+                            <div className="bg-gray-800 text-gray-100 font-mono text-xs overflow-x-auto">
+                              <pre className="whitespace-pre p-3">{sseJson}</pre>
                             </div>
                           </div>
                         ),
                       });
-                    } else {
-                      if (sseJson) {
-                        tabs.push({
-                          key: "sse",
-                          label: "SSE",
-                          children: (
-                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<CopyOutlined />}
-                                className="absolute top-2 right-2 z-10"
-                                onClick={() => handleCopy(sseJson)}
-                              />
-                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre">{sseJson}</pre>
-                              </div>
-                            </div>
-                          ),
-                        });
-                      }
-                      
-                      if (httpJson) {
-                        tabs.push({
-                          key: "http",
-                          label: "Streaming HTTP",
-                          children: (
-                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<CopyOutlined />}
-                                className="absolute top-2 right-2 z-10"
-                                onClick={() => handleCopy(httpJson)}
-                              />
-                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre">{httpJson}</pre>
-                              </div>
-                            </div>
-                          ),
-                        });
-                      }
                     }
-                    
-                    return tabs;
-                  })()}
-                />
-              </div>
-            </Card>
+
+                    if (httpJson) {
+                      tabs.push({
+                        key: "http",
+                        label: "Streamable HTTP",
+                        children: (
+                          <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<CopyOutlined />}
+                              className="absolute top-2 right-2 z-10 text-gray-400 hover:text-white"
+                              onClick={() => handleCopy(httpJson)}
+                            />
+                            <div className="bg-gray-900  text-gray-100 font-mono text-xs overflow-x-auto">
+                              <pre className="whitespace-pre p-3">{httpJson}</pre>
+                            </div>
+                          </div>
+                        ),
+                      });
+                    }
+                  }
+
+                  return tabs;
+                })()}
+              />
+            </div>
           )}
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Layout>
   );
 }

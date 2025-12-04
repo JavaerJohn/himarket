@@ -31,6 +31,9 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.lang.reflect.Method;
 
 /**
  * 统一响应处理
@@ -45,7 +48,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
  * 以下情况不会被包装:
  * 1. 返回值已经是 {@link ResponseEntity}
  * 2. 返回值已经是 {@link Response}
- *
+ * 3. ExceptionAdvice 已经处理的异常响应（避免二次包装）
  */
 @RestControllerAdvice
 @Slf4j
@@ -59,15 +62,24 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
                 declaringClass.getName().contains("springfox.documentation")) {
             return false;
         }
+        Method method = returnType.getMethod();
+        if (method == null) {
+            return false;
+        }
 
-        return !returnType.getParameterType().equals(ResponseEntity.class)
-                && !returnType.getParameterType().equals(Response.class);
+        Class<?> type = returnType.getMethod().getReturnType();
+        return !type.equals(ResponseEntity.class) && !type.equals(Response.class) && !type.equals(SseEmitter.class);
     }
 
     @Override
     public Object beforeBodyWrite(Object body, MethodParameter returnType,
                                   MediaType selectedContentType, Class<? extends HttpMessageConverter<?>> selectedConverterType,
                                   ServerHttpRequest request, ServerHttpResponse response) {
+        // 如果body已经是Response对象，说明是ExceptionAdvice处理过的异常响应，直接返回，避免二次包装
+        if (body instanceof Response) {
+            return body;
+        }
+        
         // 设置成功响应码
         response.setStatusCode(HttpStatus.OK);
 

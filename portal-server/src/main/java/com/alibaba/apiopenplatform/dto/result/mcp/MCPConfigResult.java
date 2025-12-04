@@ -19,11 +19,19 @@
 
 package com.alibaba.apiopenplatform.dto.result.mcp;
 
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import cn.hutool.core.util.StrUtil;
+import com.alibaba.apiopenplatform.core.constant.Resources;
+import com.alibaba.apiopenplatform.core.exception.BusinessException;
+import com.alibaba.apiopenplatform.core.exception.ErrorCode;
+import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import lombok.Data;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 @Data
 public class MCPConfigResult {
@@ -35,6 +43,48 @@ public class MCPConfigResult {
     protected String tools;
 
     protected McpMetadata meta;
+
+    public McpServerConfig toStandardMcpServer() {
+        McpServerConfig mcpServerConfig = new McpServerConfig();
+        McpServerConfig.McpServer mcpServer = new McpServerConfig.McpServer();
+
+        mcpServer.setType(StringUtils.isBlank(meta.getProtocol()) ? "sse" : meta.getProtocol().toLowerCase());
+        List<DomainResult> domains = this.mcpServerConfig.getDomains();
+        DomainResult domainResult = domains.stream()
+                .filter(domain -> !"intranet".equalsIgnoreCase(domain.getNetworkType()) && !"*".equals(domain.getDomain()))
+                .findFirst()
+                .orElse(domains.get(0));
+        String url = String.format("%s://%s", domainResult.getProtocol(), domainResult.getDomain());
+
+        String path = this.getMcpServerConfig().getPath();
+        if (StrUtil.isNotBlank(path)) {
+            url = path.startsWith("/") ? url + path : url + "/" + path;
+        }
+
+        if (StringUtils.equalsIgnoreCase(mcpServer.getType(), "sse")) {
+            if (!url.endsWith("/sse")) {
+                url = url.endsWith("/") ? url + "sse" : url + "/sse";
+            }
+        }
+        mcpServer.setUrl(url);
+
+        mcpServerConfig.setMcpServers(Collections.singletonMap(mcpServerName, mcpServer));
+        return mcpServerConfig;
+    }
+
+    public void convertDomainToGatewayIp(List<String> gatewayIps) {
+
+        List<DomainResult> domains = this.mcpServerConfig.getDomains();
+        for (DomainResult domain : domains) {
+            if (StringUtils.equals(domain.getDomain(), "<higress-gateway-ip>")) {
+                if (gatewayIps.isEmpty()) {
+                    throw new BusinessException(ErrorCode.GATEWAY_ERROR, Resources.GATEWAY, "no available ip to replace <higress-gateway-ip>");
+                }
+                String randomGatewayIp = gatewayIps.get(new Random().nextInt(gatewayIps.size()));
+                domain.setDomain(randomGatewayIp);
+            }
+        }
+    }
 
     @Data
     public static class McpMetadata {

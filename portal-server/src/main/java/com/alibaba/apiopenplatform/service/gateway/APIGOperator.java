@@ -27,11 +27,11 @@ import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.APIConfigResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.support.consumer.APIGAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
@@ -43,7 +43,6 @@ import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
-import com.alibaba.apiopenplatform.service.gateway.client.SLSClient;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
@@ -51,7 +50,6 @@ import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.AuthorizationRules;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.ResourceIdentifier;
-import com.aliyun.sdk.service.sls20201230.models.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -74,6 +72,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         return fetchAPIs(gateway, APIGAPIType.HTTP, page, size);
     }
 
+    @Override
     public PageResult<APIResult> fetchRESTAPIs(Gateway gateway, int page, int size) {
         return fetchAPIs(gateway, APIGAPIType.REST, page, size);
     }
@@ -89,7 +88,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+    public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
         throw new UnsupportedOperationException("APIG does not support Model APIs");
     }
 
@@ -443,51 +442,40 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
     @Override
     public String getDashboard(Gateway gateway, String type) {
-        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(), true);
-        String ticket = null;
+        throw new UnsupportedOperationException("Dashboard feature has been removed");
+    }
+
+    @Override
+    public List<String> fetchGatewayIps(Gateway gateway) {
+
+        APIGClient client = getClient(gateway);
         try {
-            CreateTicketResponse response = ticketClient.execute(c -> {
-                CreateTicketRequest request = CreateTicketRequest.builder().build();
-                try {
-                    return c.createTicket(request).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
+            CompletableFuture<GetGatewayResponse> f = client.execute(c -> {
+                GetGatewayRequest request = GetGatewayRequest.builder()
+                        .gatewayId(gateway.getGatewayId())
+                        .build();
+
+                return c.getGateway(request);
+
             });
-            ticket = response.getBody().getTicket();
+
+            GetGatewayResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            List<GetGatewayResponseBody.LoadBalancers> loadBalancers = response.getBody().getData().getLoadBalancers();
+            return loadBalancers.stream()
+                    // Only internet load balancer support
+                    .filter(loadBalancer -> StrUtil.equalsIgnoreCase(loadBalancer.getAddressType(), "internet"))
+                    .map(GetGatewayResponseBody.LoadBalancers::getIpv4Addresses)
+                    .filter(Objects::nonNull)
+                    .flatMap(Collection::stream)
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Error fetching API", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching createTicker API,Cause:" + e.getMessage());
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching API，Cause：" + e.getMessage());
         }
-        SLSClient client = new SLSClient(gateway.getApigConfig(), false);
-        String projectName = null;
-        try {
-            ListProjectResponse response = client.execute(c -> {
-                ListProjectRequest request = ListProjectRequest.builder().projectName("product").build();
-                try {
-                    return c.listProject(request).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            projectName = response.getBody().getProjects().get(0).getProjectName();
-        } catch (Exception e) {
-            log.error("Error fetching Project", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching Project,Cause:" + e.getMessage());
-        }
-        String region = gateway.getApigConfig().getRegion();
-        String gatewayId = gateway.getGatewayId();
-        String dashboardId = "";
-        if (type.equals("Portal")) {
-            dashboardId = "dashboard-1758009692051-393998";
-        } else if (type.equals("MCP")) {
-            dashboardId = "dashboard-1757483808537-433375";
-        } else if (type.equals("API")) {
-            dashboardId = "dashboard-1756276497392-966932";
-        }
-        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/%s?filters=cluster_id%%253A%%2520%s&slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, dashboardId, gatewayId, region, ticket);
-        log.info("Dashboard URL: {}", dashboardUrl);
-        return dashboardUrl;
     }
 
     public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {

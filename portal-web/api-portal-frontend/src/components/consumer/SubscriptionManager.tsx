@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Card,
   Button,
   message,
   Modal,
@@ -11,6 +10,7 @@ import {
 } from "antd";
 import {
   PlusOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import api from "../../lib/api";
 import type { Subscription } from "../../types/consumer";
@@ -18,21 +18,24 @@ import type { ApiResponse, Product } from "../../types";
 import { getSubscriptionStatusText, getSubscriptionStatusColor, ProductTypeMap } from "../../lib/statusUtils";
 import { formatDateTime } from "../../lib/utils";
 import { AdvancedSearch, type SearchParam } from "../common";
+import type { ISubscription } from "../../lib/apis";
+import { modelStyles } from "../../lib/styles";
 
 interface SubscriptionManagerProps {
   consumerId: string;
-  subscriptions: Subscription[];
+  subscriptions: ISubscription[];
   onSubscriptionsChange: (searchParams?: { productName: string; status: string }) => void;
+  onRefresh: () => void;
   loading?: boolean;
 }
 
-export function SubscriptionManager({ consumerId, subscriptions, onSubscriptionsChange, loading = false }: SubscriptionManagerProps) {
+export function SubscriptionManager({ consumerId, subscriptions, onSubscriptionsChange, loading = false, onRefresh }: SubscriptionManagerProps) {
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [productLoading, setProductLoading] = useState(false);
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
-  const [subscriptionSearch, setSubscriptionSearch] = useState({ productName: '', status: '' as 'PENDING' | 'APPROVED' | '' });
+  const [subscriptionSearch, setSubscriptionSearch] = useState({ productName: '', status: '' });
 
   // 搜索参数配置
   const searchParamsList: SearchParam[] = [
@@ -57,7 +60,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
   // 高级搜索处理函数
   const handleAdvancedSearch = (searchName: string, searchValue: string) => {
     const newSearch = { ...subscriptionSearch };
-    
+
     if (searchValue) {
       // 设置搜索值
       if (searchName === 'productName') {
@@ -73,9 +76,9 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
         newSearch.status = '';
       }
     }
-    
+
     setSubscriptionSearch(newSearch);
-    
+
     // 调用父组件的搜索回调
     onSubscriptionsChange({
       productName: newSearch.productName,
@@ -85,7 +88,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
 
   // 清除所有搜索条件
   const handleClearAllSearch = () => {
-    const emptySearch = { productName: '', status: '' as '' };
+    const emptySearch = { productName: '', status: '' };
     setSubscriptionSearch(emptySearch);
     onSubscriptionsChange({ productName: '', status: '' });
   };
@@ -94,9 +97,9 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
   const filterProducts = (allProducts: Product[]) => {
     // 获取已订阅的产品ID列表
     const subscribedProductIds = subscriptions.map(sub => sub.productId);
-    
+
     // 过滤掉已订阅的产品
-    return allProducts.filter(product => 
+    return allProducts.filter(product =>
       !subscribedProductIds.includes(product.productId)
     );
   };
@@ -192,8 +195,10 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
           title="确定要取消订阅吗？"
           onConfirm={() => handleUnsubscribe(record.productId)}
         >
-          <Button type="link" danger size="small">
-            取消订阅
+          <Button className="rounded-lg">
+            <span className="text-red-500">
+              取消订阅
+            </span>
           </Button>
         </Popconfirm>
       ),
@@ -205,32 +210,38 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
 
   return (
     <>
-      <Card style={{ borderRadius: '12px' }}>
+      <div className="bg-white">
         {/* 搜索框和订阅按钮在同一行 */}
-        <div className="mb-4 flex justify-between items-center gap-4">
-          <AdvancedSearch
-            searchParamsList={searchParamsList}
-            onSearch={handleAdvancedSearch}
-            onClear={handleClearAllSearch}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={openProductModal}
-          >
-            订阅
-          </Button>
+        <div className="mb-4 flex justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={openProductModal}
+              className="rounded-lg"
+            >
+              订阅
+            </Button>
+            <AdvancedSearch
+              searchParamsList={searchParamsList}
+              onSearch={handleAdvancedSearch}
+              onClear={handleClearAllSearch}
+            />
+          </div>
+          <Button onClick={onRefresh} className="rounded-lg" icon={<ReloadOutlined />} />
         </div>
-        <Table
-          columns={subscriptionColumns}
-          dataSource={safeSubscriptions}
-          rowKey={(record) => record.productId}
-          pagination={false}
-          size="small"
-          loading={loading}
-          locale={{ emptyText: '暂无订阅记录，请点击上方按钮进行订阅' }}
-        />
-      </Card>
+        <div className="border border-[#e5e5e5] rounded-lg overflow-hidden">
+          <Table
+            columns={subscriptionColumns}
+            dataSource={safeSubscriptions}
+            rowKey={(record) => record.productId}
+            pagination={false}
+            size="small"
+            loading={loading}
+            locale={{ emptyText: '暂无订阅记录，请点击上方按钮进行订阅' }}
+          />
+        </div>
+      </div>
 
       {/* 产品选择弹窗 */}
       <Modal
@@ -266,20 +277,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
           </div>
         }
         width={500}
-        styles={{
-          content: {
-            borderRadius: '8px',
-            padding: 0
-          },
-          header: {
-            borderRadius: '8px 8px 0 0',
-            marginBottom: 0,
-            paddingBottom: '8px'
-          },
-          body: {
-            padding: '24px'
-          }
-        }}
+        styles={modelStyles}
       >
         <div>
           <div className="text-sm text-gray-700 mb-3 font-medium">选择要订阅的产品：</div>
@@ -293,7 +291,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
             filterOption={(input, option) => {
               const product = filteredProducts.find(p => p.productId === option?.value);
               if (!product) return false;
-              
+
               const searchText = input.toLowerCase();
               return (
                 product.name?.toLowerCase().includes(searchText) ||

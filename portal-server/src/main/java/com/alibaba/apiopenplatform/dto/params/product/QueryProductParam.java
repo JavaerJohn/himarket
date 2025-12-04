@@ -39,4 +39,6 @@ public class QueryProductParam {
     private List<String> categoryIds;
     
     private String excludeCategoryId;
+
+    private Boolean querySubscribeStatus;
 }

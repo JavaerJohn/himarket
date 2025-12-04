@@ -1,4 +1,4 @@
-FROM reg.docker.alibaba-inc.com/cnstack/cnstack-alios7u2:1.0-beta
+FROM higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/nginx:alpine
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY proxy.conf /etc/nginx/default.d/proxy.conf

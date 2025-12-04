@@ -40,7 +40,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 @Tag(name = "Consumer管理", description = "提供Consumer注册、审批、产品订阅等管理功能")
 @RestController
@@ -135,5 +135,19 @@ public class ConsumerController {
     @AdminAuth
     public SubscriptionResult approveSubscription(@PathVariable String consumerId, @PathVariable String productId) {
         return consumerService.approveSubscription(consumerId, productId);
+    }
+
+    @Operation(summary = "设置Primary Consumer")
+    @PutMapping("/{consumerId}/primary")
+    @DeveloperAuth
+    public void setPrimaryConsumer(@PathVariable String consumerId) {
+        consumerService.setPrimaryConsumer(consumerId);
+    }
+
+    @Operation(summary = "获取Primary Consumer")
+    @GetMapping("/primary")
+    @DeveloperAuth
+    public ConsumerResult getPrimaryConsumer() {
+        return consumerService.getPrimaryConsumer();
     }
 }

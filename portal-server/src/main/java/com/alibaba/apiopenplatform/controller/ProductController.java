@@ -21,7 +21,8 @@ package com.alibaba.apiopenplatform.controller;
 
 import java.util.List;
 
-import javax.validation.Valid;
+import com.alibaba.apiopenplatform.dto.result.mcp.McpToolListResult;
+import jakarta.validation.Valid;
 
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
 import com.alibaba.apiopenplatform.core.annotation.AdminOrDeveloperAuth;
@@ -140,6 +141,8 @@ public class ProductController {
         productService.deleteProductRef(productId);
     }
 
+    // 暂时移除单个产品的监控大盘，大盘集中管理
+    @Deprecated
     @Operation(summary = "获取API产品的Dashboard监控面板URL")
     @GetMapping("/{productId}/dashboard")
     public String getProductDashboard(@PathVariable String productId) {
@@ -168,5 +171,20 @@ public class ProductController {
     @AdminAuth
     public void setProductCategories(@PathVariable String productId, @RequestBody List<String> categoryIds) {
         productService.setProductCategories(productId, categoryIds);
+    }
+
+    @Operation(summary = "重新加载API产品配置")
+    @PostMapping("/{productId}/reload")
+    @AdminAuth
+    public void reloadProductConfig(@PathVariable String productId) {
+        productService.reloadProductConfig(productId);
+    }
+
+    @Operation(summary = "获取MCP服务的工具详情")
+    @GetMapping("/{productId}/tools")
+    @AdminOrDeveloperAuth
+    public McpToolListResult listMcpTools(
+            @PathVariable String productId) {
+        return productService.listMcpTools(productId);
     }
 }

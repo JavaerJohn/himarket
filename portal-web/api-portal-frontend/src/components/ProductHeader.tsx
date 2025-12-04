@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Typography, Button, Modal, Select, message, Popconfirm, Input, Pagination, Spin } from "antd";
 import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled, PlusOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
 import { useParams } from "react-router-dom";
-import { getConsumers, subscribeProduct, getProductSubscriptionStatus, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
+import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
 import type { Consumer } from "../types/consumer";
-import type { McpConfig, ProductIcon } from "../types";
+import type { IMCPConfig, IProductIcon } from "../lib/apis/typing";
+import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/apis";
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
@@ -12,15 +13,18 @@ const { Search } = Input;
 interface ProductHeaderProps {
   name: string;
   description: string;
-  icon?: ProductIcon | null;
+  icon?: IProductIcon;
   defaultIcon?: string;
-  mcpConfig?: McpConfig | null;
+  mcpConfig?: IMCPConfig;
+  agentConfig?: any;  // 添加 agentConfig 支持，用于判断 Agent 来源
   updatedAt?: string;
   productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
 }
 
+type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
+
 // 处理产品图标的函数
-const getIconUrl = (icon?: ProductIcon | null, defaultIcon?: string): string => {
+const getIconUrl = (icon?: IProductIcon, defaultIcon?: string): string => {
   const fallback = defaultIcon || "/logo.svg";
   
   if (!icon) {
@@ -44,6 +48,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   icon,
   defaultIcon = "/default-icon.png",
   mcpConfig,
+  agentConfig,
   updatedAt,
   productType,
 }) => {
@@ -69,21 +74,12 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
   // 订阅状态相关的state
-  const [subscriptionStatus, setSubscriptionStatus] = useState<{
-    hasSubscription: boolean;
-    subscribedConsumers: any[];
-    allConsumers: any[];
-    fullSubscriptionData?: {
-      content: any[];
-      totalElements: number;
-      totalPages: number;
-    };
-  } | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<UnwrapPromise<ReturnType<typeof getProductSubscriptionStatus>>>();
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   
   // 订阅详情分页数据（用于管理弹窗）
   const [subscriptionDetails, setSubscriptionDetails] = useState<{
-    content: any[];
+    content: ISubscription[];
     totalElements: number;
     totalPages: number;
   }>({ content: [], totalElements: 0, totalPages: 0 });
@@ -93,7 +89,20 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   const [searchKeyword, setSearchKeyword] = useState("");
 
   // 判断是否应该显示申请订阅按钮
-  const shouldShowSubscribeButton = productType === 'AGENT_API' || productType === 'MODEL_API' || (!mcpConfig || mcpConfig.meta.source !== 'NACOS');
+  // MCP_SERVER: 来自 NACOS 时不显示
+  // AGENT_API: 来自 NACOS 时不显示
+  // MODEL_API: 始终显示
+  // REST_API: 始终显示
+  const isNacosAgent = productType === 'AGENT_API' && 
+    agentConfig?.meta?.source?.toUpperCase() === 'NACOS';
+  const isNacosMcp = productType === 'MCP_SERVER' && 
+    mcpConfig?.meta?.source?.toUpperCase() === 'NACOS';
+  
+  const shouldShowSubscribeButton = 
+    productType === 'MODEL_API' ||                      // MODEL_API: 始终显示
+    productType === 'REST_API' ||                       // REST_API: 始终显示
+    (productType === 'AGENT_API' && !isNacosAgent) ||   // AGENT_API: 非 Nacos 时显示
+    (productType === 'MCP_SERVER' && !isNacosMcp);      // MCP_SERVER: 非 Nacos 时显示
 
   // 获取产品ID - 根据产品类型获取正确的参数
   const productId = apiProductId || mcpProductId || agentProductId || modelProductId || '';
@@ -104,7 +113,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
     
     setSubscriptionLoading(true);
     try {
-      const status = await getProductSubscriptionStatus(productId);
+      const status = await APIs.getProductSubscriptionStatus(productId);
       setSubscriptionStatus(status);
     } catch (error) {
       console.error('获取订阅状态失败:', error);
@@ -151,6 +160,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
         setConsumers(response.data.content || response.data);
       }
     } catch (error) {
+      console.log(error)
       // message.error('获取消费者列表失败');
     } finally {
       setConsumersLoading(false);
@@ -351,8 +361,9 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
                 </div>
                 
                 {/* 管理按钮 */}
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
+                  className="rounded-xl"
                   onClick={showManageModal}
                 >
                   管理订阅
@@ -372,10 +383,6 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
         footer={null}
         width={600}
         styles={{
-          content: {
-            borderRadius: '8px',
-            padding: 0
-          },
           header: {
             borderRadius: '8px 8px 0 0',
             marginBottom: 0,
@@ -516,16 +523,17 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
           <div className={`border-t pt-3 ${subscriptionDetails.totalElements > 0 ? 'mt-4' : 'mt-2'}`}>
             <div className="flex justify-end">
               {!isApplyingSubscription ? (
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<PlusOutlined />}
+                  className="rounded-xl"
                   onClick={startApplyingSubscription}
                 >
                   订阅
                 </Button>
               ) : (
                 <div className="w-full">
-                  <div className="bg-gray-50 p-4 rounded">
+                  <div className="bg-gray-50 p-4 rounded-xl">
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         选择消费者
@@ -559,11 +567,12 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
                       </Select>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button onClick={cancelApplyingSubscription}>
+                      <Button className="rounded-xl" onClick={cancelApplyingSubscription}>
                         取消
                       </Button>
-                      <Button 
+                      <Button
                         type="primary"
+                        className="rounded-xl"
                         loading={submitLoading}
                         disabled={!selectedConsumerId}
                         onClick={handleApplySubscription}

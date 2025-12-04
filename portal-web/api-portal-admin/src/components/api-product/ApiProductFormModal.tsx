@@ -16,6 +16,7 @@ import { apiProductApi } from "@/lib/api";
 import { getProductCategories } from "@/lib/productCategoryApi";
 import type { ApiProduct } from "@/types/api-product";
 import type { ProductCategory } from "@/types/product-category";
+import ModelFeatureForm from "./ModelFeatureForm";
 
 interface ApiProductFormModalProps {
   visible: boolean;
@@ -40,6 +41,9 @@ export default function ApiProductFormModal({
   const [iconMode, setIconMode] = useState<'BASE64' | 'URL'>('URL');
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const isEditMode = !!productId;
+  
+  // Watch product type to show/hide feature form
+  const productType = Form.useWatch('type', form);
 
   // 获取产品类别列表
   const fetchProductCategories = async () => {
@@ -54,20 +58,23 @@ export default function ApiProductFormModal({
 
   // 初始化时加载已有数据
   useEffect(() => {
+    if (!visible) return;
+    
     fetchProductCategories();
     
-    if (visible && isEditMode && initialData && initialData.name) {
+    if (isEditMode && initialData && initialData.name) {
+      // 延迟设置表单值，确保表单组件已完全渲染
       setTimeout(() => {
-        // 1. 先设置所有字段
-        form.setFieldsValue({
-          name: initialData.name,
-          description: initialData.description,
-          type: initialData.type,
-          autoApprove: initialData.autoApprove,
-        });
-      }, 100);
+      form.setFieldsValue({
+        name: initialData.name,
+        description: initialData.description,
+        type: initialData.type,
+        autoApprove: initialData.autoApprove,
+            feature: initialData.feature,
+          });
+        }, 300);
 
-      // 2. 处理 icon 字段
+      // 处理 icon 字段
       if (initialData.icon) {
         if (typeof initialData.icon === 'object' && initialData.icon.type && initialData.icon.value) {
           // 新格式：{ type: 'BASE64' | 'URL', value: string }
@@ -85,9 +92,13 @@ export default function ApiProductFormModal({
                 url: iconValue,
               },
             ]);
+            setTimeout(() => {
             form.setFieldsValue({ icon: iconValue });
+            }, 100);
           } else {
+            setTimeout(() => {
             form.setFieldsValue({ iconUrl: iconValue });
+            }, 100);
           }
         } else {
           // 兼容旧格式（字符串格式）
@@ -106,7 +117,9 @@ export default function ApiProductFormModal({
                 url: base64Data,
               },
             ]);
+            setTimeout(() => {
             form.setFieldsValue({ icon: base64Data });
+            }, 100);
           }
         }
       }
@@ -115,7 +128,9 @@ export default function ApiProductFormModal({
       if (initialData.productId) {
         apiProductApi.getProductCategories(initialData.productId).then((response) => {
           const categoryIds = response.data.map((category: any) => category.categoryId);
+          setTimeout(() => {
           form.setFieldsValue({ categories: categoryIds });
+          }, 100);
         }).catch((error) => {
           console.error("获取产品关联类别失败:", error);
         });
@@ -126,7 +141,7 @@ export default function ApiProductFormModal({
       setFileList([]);
       setIconMode('URL');
     }
-  }, [visible, isEditMode, initialData, form]);
+  }, [visible]);
 
   // 将文件转为 Base64
   const getBase64 = (file: File): Promise<string> =>
@@ -255,7 +270,7 @@ export default function ApiProductFormModal({
       confirmLoading={loading}
       width={600}
     >
-      <Form form={form} layout="vertical" preserve={false}>
+      <Form form={form} layout="vertical">
         <Form.Item
           label="名称"
           name="name"
@@ -277,7 +292,12 @@ export default function ApiProductFormModal({
           name="type"
           rules={[{ required: true, message: "请选择类型" }]}
         >
-          <Select placeholder="请选择类型">
+          <Select 
+            placeholder="请选择类型"
+            onChange={() => {
+              form.setFieldValue('feature', undefined);
+            }}
+          >
             <Select.Option value="REST_API">REST API</Select.Option>
             <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
             <Select.Option value="AGENT_API">Agent API</Select.Option>
@@ -488,6 +508,9 @@ export default function ApiProductFormModal({
             src={previewImage}
           />
         )}
+
+        {/* Feature Configuration */}
+        {productType === 'MODEL_API' && <ModelFeatureForm initialExpanded={isEditMode && !!initialData?.feature} />}
       </Form>
     </Modal>
   );

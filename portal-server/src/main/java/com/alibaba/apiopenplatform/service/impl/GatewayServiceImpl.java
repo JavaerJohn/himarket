@@ -32,7 +32,7 @@ import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.repository.GatewayRepository;
@@ -53,7 +53,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -91,6 +91,11 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         gatewayRepository.findByGatewayId(param.getGatewayId())
                 .ifPresent(gateway -> {
                     throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.GATEWAY, param.getGatewayId()));
+                });
+
+        gatewayRepository.findByGatewayName(param.getGatewayName())
+                .ifPresent(gateway -> {
+                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.GATEWAY, param.getGatewayName()));
                 });
 
         Gateway gateway = param.convertTo();
@@ -180,7 +185,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public PageResult<ModelAPIResult> fetchModelAPIs(String gatewayId, int page, int size) {
+    public PageResult<GatewayModelAPIResult> fetchModelAPIs(String gatewayId, int page, int size) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchModelAPIs(gateway, page, size);
     }
@@ -295,6 +300,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     public String getDashboard(String gatewayId, String type) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).getDashboard(gateway, type); //type: Portal,MCP,API
+    }
+
+    @Override
+    public List<String> fetchGatewayIps(String gatewayId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchGatewayIps(gateway);
     }
 
     private Specification<Gateway> buildGatewaySpec(QueryGatewayParam param) {

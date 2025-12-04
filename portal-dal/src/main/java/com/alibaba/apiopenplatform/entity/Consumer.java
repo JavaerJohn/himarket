@@ -24,7 +24,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.hibernate.annotations.ColumnDefault;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "consumer",
@@ -59,4 +59,7 @@ public class Consumer extends BaseEntity {
 
     @Column(name = "developer_id", length = 64, nullable = false)
     private String developerId;
+
+    @Column(name = "is_primary")
+    private Boolean isPrimary;
 }

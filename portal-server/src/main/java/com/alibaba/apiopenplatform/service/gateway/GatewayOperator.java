@@ -26,7 +26,8 @@ import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.AIGWModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
 import com.alibaba.apiopenplatform.service.gateway.client.GatewayClient;
@@ -38,6 +39,7 @@ import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -54,7 +56,7 @@ public abstract class GatewayOperator<T> {
 
     abstract public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size);
 
-    abstract public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size);
+    abstract public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size);
 
     abstract public String fetchAPIConfig(Gateway gateway, Object config);
 
@@ -89,13 +91,9 @@ public abstract class GatewayOperator<T> {
 
     abstract public GatewayType getGatewayType();
 
-    /**
-     * 获取网关控制台仪表盘链接
-     *
-     * @param gateway 网关实体
-     * @return 仪表盘访问链接
-     */
     abstract public String getDashboard(Gateway gateway, String type);
+
+    abstract public List<String> fetchGatewayIps(Gateway gateway);
 
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {

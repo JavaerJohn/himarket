@@ -22,13 +22,13 @@ HiMarket 是一个开箱即用的 AI 开放平台解决方案，可以用于构�
 
 1. **安装 Git**
    https://git-scm.com/downloads
-2. **安装 JDK 8 或者更高版本**
+2. **安装 JDK 17**
 3. **安装 Node.js（建议 v20 及以上）**
    https://nodejs.org/
 4. **安装 Maven**
    https://maven.apache.org/download.cgi
 5. **准备数据库**
-   后端服务依赖外部数据库。你需要本地启动数据库（如 MySQL/MariaDB 等），并根据 portal-bootstrap 中的 application.yaml 文件配置数据库连接参数。
+   后端服务依赖外部数据库。你需要本地启动数据库（如 MySQL 8.0），并根据 portal-bootstrap 中的 application.yaml 文件配置数据库连接参数。
 
 ### 克隆项目代码
 
@@ -182,7 +182,7 @@ HiMarket 门户是多租户设计，通过域名来识别不同的门户实例�
 ### 阿里云开箱即用
 阿里云计算巢支持了该项目开箱即用版本，可以使用下面链接一键部署社区版：
 
-[![Deploy on AlibabaCloud ComputeNest](https://service-info-public.oss-cn-hangzhou.aliyuncs.com/computenest.svg)](https://computenest.console.aliyun.com/service/instance/create/cn-hangzhou?type=user&ServiceName=HiMarket%20AI%20%E5%BC%80%E6%94%BE%E5%B9%B3%E5%8F%B0)
+[![Deploy on AlibabaCloud ComputeNest](https://service-info-public.oss-cn-hangzhou.aliyuncs.com/computenest.svg)](https://computenest.console.aliyun.com/service/instance/create/cn-hangzhou?type=user&ServiceId=service-b96fefcb748f47b7b958)
 
 ## 社区
 
@@ -216,4 +216,3 @@ HiMarket 门户是多租户设计，通过域名来识别不同的门户实例�
         ↑ 返回顶部 ↑
     </a>
 </p>
-
